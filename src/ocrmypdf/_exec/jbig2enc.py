@@ -31,9 +31,3 @@ def available():
     return True
 
 
-def convert_single(cwd, infile, outfile, threshold):
-    args = ['jbig2', '--pdf', '-t', str(threshold), infile]
-    with open(outfile, 'wb') as fstdout:
-        proc = run(args, cwd=cwd, stdout=fstdout, stderr=PIPE)
-    proc.check_returncode()
-    return proc

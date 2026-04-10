@@ -49,13 +49,7 @@ def pdfsimplefont__init__(
     conversion is possible. This is incorrect, according to PDF Reference Manual
     9.10.2. This patch fixes that.
     """
-    # Font encoding is specified either by a name of
-    # built-in encoding or a dictionary that describes
-    # the differences.
-    original_pdfsimplefont_init(self, descriptor, widths, spec)
-    if not self.unicode_map and 'Encoding' not in spec:
-        self.cid2unicode = {}
-    return
+    pass
 
 
 PDFSimpleFont.__init__ = pdfsimplefont__init__
@@ -74,10 +68,7 @@ def pdftype3font__pscript5_get_height(self):
     using the bbox height if it is available, otherwise using the
     ascent and descent.
     """
-    h = self.bbox[3] - self.bbox[1]
-    if h == 0:
-        h = self.ascent - self.descent
-    return h * copysign(1.0, self.vscale)
+    pass
 
 
 def pdftype3font__pscript5_get_descent(self):
@@ -87,7 +78,7 @@ def pdftype3font__pscript5_get_descent(self):
     generated PDFs. This patch attempts to correct the descent by
     using the vscale.
     """
-    return self.descent * copysign(1.0, self.vscale)
+    pass
 
 
 def pdftype3font__pscript5_get_ascent(self):
@@ -97,12 +88,12 @@ def pdftype3font__pscript5_get_ascent(self):
     generated PDFs. This patch attempts to correct the ascent by
     using the vscale.
     """
-    return self.ascent * copysign(1.0, self.vscale)
+    pass
 
 
 def _is_undefined_char(s: str) -> bool:
     """Check if a string is an undefined character."""
-    return s.startswith('(cid:') and s.endswith(')')
+    pass
 
 
 class LTStateAwareChar(LTChar):
@@ -161,21 +152,11 @@ class LTStateAwareChar(LTChar):
             - the Unicode mapping is known, and both have the same render mode
             - the Unicode mapping is unknown but both are part of the same font
         """
-        # pylint: disable=protected-access
-        if not isinstance(obj, LTStateAwareChar):
-            return False
-        both_unicode_mapped = not _is_undefined_char(
-            self._text
-        ) and not _is_undefined_char(obj._text)
-        if both_unicode_mapped:
-            return self.rendermode == obj.rendermode
-        return self.fontname == obj.fontname and self.rendermode == obj.rendermode
+        pass
 
     def get_text(self) -> str:
         """Get text from this character."""
-        if _is_undefined_char(self._text):
-            return '\ufffd'  # standard 'Unknown symbol'
-        return self._text
+        pass
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""
@@ -207,17 +188,11 @@ class TextPositionTracker(PDFLayoutAnalyzer):
 
     def begin_page(self, page: PDFPage, ctm: Matrix) -> None:
         """Begin processing of a page."""
-        super().begin_page(page, ctm)
-        self.cur_item = LTPage(self.pageno, page.mediabox)
+        pass
 
     def end_page(self, page: PDFPage) -> None:
         """End processing of a page."""
-        assert not self._stack, str(len(self._stack))
-        assert isinstance(self.cur_item, LTPage), str(type(self.cur_item))
-        if self.laparams is not None:
-            self.cur_item.analyze(self.laparams)
-        self.pageno += 1
-        self.receive_layout(self.cur_item)
+        pass
 
     def render_string(
         self,
@@ -227,8 +202,7 @@ class TextPositionTracker(PDFLayoutAnalyzer):
         graphicstate: PDFGraphicState,
     ) -> None:
         """Respond to render string event by updating text state."""
-        self.textstate = textstate.copy()
-        super().render_string(self.textstate, seq, ncs, graphicstate)
+        pass
 
     def render_char(
         self,
@@ -242,52 +216,21 @@ class TextPositionTracker(PDFLayoutAnalyzer):
         graphicstate: PDFGraphicState,
     ) -> float:
         """Respond to render char event by updating text state."""
-        try:
-            text = font.to_unichr(cid)
-            assert isinstance(text, str), str(type(text))
-        except PDFUnicodeNotDefined:
-            text = self.handle_undefined_char(font, cid)
-        textwidth = font.char_width(cid)
-        textdisp = font.char_disp(cid)
-        item = LTStateAwareChar(
-            matrix,
-            font,
-            fontsize,
-            scaling,
-            rise,
-            text,
-            textwidth,
-            textdisp,
-            ncs,
-            graphicstate,
-            self.textstate,
-        )
-        self.cur_item.add(item)
-        return item.adv
+        pass
 
     def receive_layout(self, ltpage: LTPage) -> None:
         """Receive layout handler."""
-        self.result = ltpage
+        pass
 
     def get_result(self) -> LTPage | None:
         """Get the result of the analysis."""
-        return self.result
+        pass
 
 
 @contextmanager
 def patch_pdfminer(pscript5_mode: bool):
     """Patch pdfminer.six to work around bugs in PDFs created by PScript5."""
-    if pscript5_mode:
-        with patch.multiple(
-            'pdfminer.pdffont.PDFType3Font',
-            spec=True,
-            get_ascent=pdftype3font__pscript5_get_ascent,
-            get_descent=pdftype3font__pscript5_get_descent,
-            get_height=pdftype3font__pscript5_get_height,
-        ):
-            yield
-    else:
-        yield
+    pass
 
 
 @deprecated(deprecated_in='16.6.0', details='Use PdfMinerState instead.')
@@ -295,30 +238,7 @@ def get_page_analysis(
     infile: PathLike, pageno: int, pscript5_mode: bool
 ) -> LTPage | None:
     """Get the page analysis for a given page."""
-    rman = pdfminer.pdfinterp.PDFResourceManager(caching=True)
-    disable_boxes_flow = None
-    dev = TextPositionTracker(
-        rman,
-        laparams=LAParams(
-            all_texts=True, detect_vertical=True, boxes_flow=disable_boxes_flow
-        ),
-    )
-    interp = pdfminer.pdfinterp.PDFPageInterpreter(rman, dev)
-
-    with patch_pdfminer(pscript5_mode):
-        try:
-            with Path(infile).open('rb') as f:
-                page_iter = PDFPage.get_pages(f, pagenos=[pageno], maxpages=0)
-                page = next(page_iter, None)
-                if page is None:
-                    raise InputFileError(
-                        f"pdfminer could not process page {pageno} (counting from 0)."
-                    )
-                interp.process_page(page)
-        except PDFTextExtractionNotAllowed as e:
-            raise EncryptedPdfError() from e
-
-    return dev.get_result()
+    pass
 
 
 class PdfMinerState:
@@ -357,39 +277,9 @@ class PdfMinerState:
 
     def get_page_analysis(self, pageno: int):
         """Get the page analysis for a given page."""
-        while len(self.page_cache) <= pageno:
-            try:
-                self.page_cache.append(next(self.page_iter))
-            except StopIteration:
-                raise InputFileError(
-                    f"pdfminer did not find page {pageno} in the input file."
-                ) from None
-        page = self.page_cache[pageno]
-        if not page:
-            raise InputFileError(
-                f"pdfminer could not process page {pageno} (counting from 0)."
-            )
-        dev = TextPositionTracker(
-            self.rman,
-            laparams=LAParams(
-                all_texts=True, detect_vertical=True, boxes_flow=self.disable_boxes_flow
-            ),
-        )
-        interp = pdfminer.pdfinterp.PDFPageInterpreter(self.rman, dev)
-
-        with patch_pdfminer(self.pscript5_mode):
-            interp.process_page(page)
-
-        return dev.get_result()
+        pass
 
 
 def get_text_boxes(obj) -> Iterator[LTTextBox]:
     """Get the text boxes attached to the current node."""
-    for child in obj:
-        if isinstance(child, (LTTextBox)):
-            yield child
-        else:
-            try:
-                yield from get_text_boxes(child)
-            except TypeError:
-                continue
+    pass

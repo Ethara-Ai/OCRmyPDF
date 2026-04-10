@@ -36,31 +36,7 @@ logger = logging.getLogger()
 
 def _page_has_text(text_blocks: Iterable[FloatRect], page_width, page_height) -> bool:
     """Smarter text detection that ignores text in margins."""
-    pw, ph = float(page_width), float(page_height)  # pylint: disable=invalid-name
-
-    margin_ratio = 0.125
-    interior_bbox = (
-        margin_ratio * pw,  # left
-        (1 - margin_ratio) * ph,  # top
-        (1 - margin_ratio) * pw,  # right
-        margin_ratio * ph,  # bottom  (first quadrant: bottom < top)
-    )
-
-    def rects_intersect(a: FloatRect, b: FloatRect) -> bool:
-        """Check if two 4-tuple rects intersect.
-
-        Where (a,b) are 4-tuple rects (left-0, top-1, right-2, bottom-3)
-        https://stackoverflow.com/questions/306316/determine-if-two-rectangles-overlap-each-other
-        Formula assumes all boxes are in first quadrant.
-        """
-        return a[0] < b[2] and a[2] > b[0] and a[1] > b[3] and a[3] < b[1]
-
-    has_text = False
-    for bbox in text_blocks:
-        if rects_intersect(bbox, interior_bbox):
-            has_text = True
-            break
-    return has_text
+    pass
 
 
 def simplify_textboxes(
@@ -70,14 +46,7 @@ def simplify_textboxes(
 
     We do this to save memory and ensure that our objects are pickleable.
     """
-    for box in textbox_getter(miner_page):
-        first_line = box._objs[0]  # pylint: disable=protected-access
-        first_char = first_line._objs[0]  # pylint: disable=protected-access
-        if not isinstance(first_char, LTStateAwareChar):
-            continue
-        visible = first_char.rendermode != 3
-        corrupt = first_char.get_text() == '\ufffd'
-        yield TextboxInfo(box.bbox, visible, corrupt)
+    pass
 
 
 class PageResolutionProfile(NamedTuple):
@@ -130,98 +99,21 @@ class PageInfo:
             pdf, pageno, infile, check_pages, detailed_analysis, miner_state
         )
 
-    def _gather_pageinfo(
-        self,
-        pdf: Pdf,
-        pageno: int,
-        infile: PathLike,
-        check_pages: Container[int],
-        detailed_analysis: bool,
-        miner_state: PdfMinerState | None,
-    ):
-        page: Page = pdf.pages[pageno]
-        mediabox = [Decimal(d) for d in page.mediabox.as_list()]
-        width_pt = mediabox[2] - mediabox[0]
-        height_pt = mediabox[3] - mediabox[1]
-
-        self._artbox = [float(d) for d in page.artbox.as_list()]
-        self._bleedbox = [float(d) for d in page.bleedbox.as_list()]
-        self._cropbox = [float(d) for d in page.cropbox.as_list()]
-        self._mediabox = [float(d) for d in page.mediabox.as_list()]
-        self._trimbox = [float(d) for d in page.trimbox.as_list()]
-
-        check_this_page = pageno in check_pages
-
-        if check_this_page and detailed_analysis:
-            page_analysis = miner_state.get_page_analysis(pageno)
-            if page_analysis is not None:
-                self._textboxes = list(
-                    simplify_textboxes(page_analysis, get_text_boxes)
-                )
-            else:
-                self._textboxes = []
-            bboxes = (box.bbox for box in self._textboxes)
-
-            self._has_text = _page_has_text(bboxes, width_pt, height_pt)
-        else:
-            self._textboxes = []
-            self._has_text = None  # i.e. "no information"
-
-        userunit = page.get(Name.UserUnit, Decimal(1.0))
-        if not isinstance(userunit, Decimal):
-            userunit = Decimal(userunit)
-        self._userunit = userunit
-        self._width_inches = width_pt * userunit / Decimal(72.0)
-        self._height_inches = height_pt * userunit / Decimal(72.0)
-        self._rotate = int(getattr(page.obj, 'Rotate', 0))
-
-        userunit_shorthand = (userunit, 0, 0, userunit, 0, 0)
-
-        if check_this_page:
-            self._has_vector = False
-            self._has_text = False
-            self._images = []
-            for info in _process_content_streams(
-                pdf=pdf, container=page, shorthand=userunit_shorthand
-            ):
-                if isinstance(info, VectorMarker):
-                    self._has_vector = True
-                elif isinstance(info, TextMarker):
-                    self._has_text = True
-                elif isinstance(info, ImageInfo):
-                    self._images.append(info)
-                else:
-                    raise NotImplementedError()
-        else:
-            self._has_vector = None  # i.e. "no information"
-            self._has_text = None
-            self._images = []
-
-        self._dpi = None
-        if self._images:
-            dpi = Resolution(0.0, 0.0).take_max(
-                image.dpi for image in self._images if image.renderable
-            )
-            self._dpi = dpi
-            self._width_pixels = int(round(dpi.x * float(self._width_inches)))
-            self._height_pixels = int(round(dpi.y * float(self._height_inches)))
 
     @property
     def pageno(self) -> int:
         """Return page number (0-based)."""
-        return self._pageno
+        pass
 
     @property
     def has_text(self) -> bool:
         """Return True if page has text, False if not or unknown."""
-        return bool(self._has_text)
+        pass
 
     @property
     def has_corrupt_text(self) -> bool:
         """Return True if page has corrupt text, False if not or unknown."""
-        if not self._detailed_analysis:
-            raise NotImplementedError('Did not do detailed analysis')
-        return any(tbox.is_corrupt for tbox in self._textboxes)
+        pass
 
     @property
     def has_vector(self) -> bool:
@@ -230,27 +122,27 @@ class PageInfo:
         Vector graphics are sometimes used to draw fonts, so it may not be
         obvious on visual inspection whether a page has text or not.
         """
-        return bool(self._has_vector)
+        pass
 
     @property
     def width_inches(self) -> Decimal:
         """Return width of page in inches."""
-        return self._width_inches
+        pass
 
     @property
     def height_inches(self) -> Decimal:
         """Return height of page in inches."""
-        return self._height_inches
+        pass
 
     @property
     def width_pixels(self) -> int:
         """Return width of page in pixels."""
-        return int(round(float(self.width_inches) * self.dpi.x))
+        pass
 
     @property
     def height_pixels(self) -> int:
         """Return height of page in pixels."""
-        return int(round(float(self.height_inches) * self.dpi.y))
+        pass
 
     @property
     def rotation(self) -> int:
@@ -258,84 +150,57 @@ class PageInfo:
 
         Will only be a multiple of 90.
         """
-        return self._rotate
+        pass
 
-    @rotation.setter
-    def rotation(self, value):
-        if value in (0, 90, 180, 270, 360, -90, -180, -270):
-            self._rotate = value
-        else:
-            raise ValueError("rotation must be a cardinal angle")
 
     @property
     def cropbox(self) -> FloatRect:
         """Return cropbox of page in PDF coordinates."""
-        return self._cropbox
+        pass
 
     @property
     def mediabox(self) -> FloatRect:
         """Return mediabox of page in PDF coordinates."""
-        return self._mediabox
+        pass
 
     @property
     def trimbox(self) -> FloatRect:
         """Return trimbox of page in PDF coordinates."""
-        return self._trimbox
+        pass
 
     @property
     def artbox(self) -> FloatRect:
         """Return artbox of page in PDF coordinates."""
-        return self._artbox
+        pass
 
     @property
     def bleedbox(self) -> FloatRect:
         """Return bleedbox of page in PDF coordinates."""
-        return self._bleedbox
+        pass
 
     @property
     def images(self) -> list[ImageInfo]:
         """Return images."""
-        return self._images
+        pass
 
     def get_textareas(self, visible: bool | None = None, corrupt: bool | None = None):
         """Return textareas bounding boxes in PDF coordinates on the page."""
-
-        def predicate(
-            obj: TextboxInfo, want_visible: bool | None, want_corrupt: bool | None
-        ) -> bool:
-            result = True
-            if want_visible is not None and obj.is_visible != want_visible:
-                result = False
-            if want_corrupt is not None and obj.is_corrupt != want_corrupt:
-                result = False
-            return result
-
-        if not self._textboxes:
-            if visible is not None and corrupt is not None:
-                raise NotImplementedError('Incomplete information on textboxes')
-            return self._textboxes
-
-        return (obj.bbox for obj in self._textboxes if predicate(obj, visible, corrupt))
+        pass
 
     @property
     def dpi(self) -> Resolution:
         """Return DPI needed to render all images on the page."""
-        if self._dpi is None:
-            return Resolution(0.0, 0.0)
-        return self._dpi
+        pass
 
     @property
     def userunit(self) -> Decimal:
         """Return user unit of page."""
-        return self._userunit
+        pass
 
     @property
     def min_version(self) -> str:
         """Return minimum PDF version needed to render this page."""
-        if self.userunit is not None:
-            return '1.6'
-        else:
-            return '1.5'
+        pass
 
     def page_dpi_profile(self) -> PageResolutionProfile | None:
         """Return information about the DPIs of the page.
@@ -349,32 +214,7 @@ class PageInfo:
 
         Returns None if there is no meaningful DPI for the page.
         """
-        image_dpis = []
-        image_areas = []
-        for image in self._images:
-            if not image.renderable:
-                continue
-            image_dpis.append(image.dpi.to_scalar())
-            image_areas.append(image.printed_area)
-
-        total_drawn_area = sum(image_areas)
-        if total_drawn_area == 0:
-            return None
-
-        weights = [area / total_drawn_area for area in image_areas]
-        # Calculate harmonic mean of DPIs weighted by area
-        weighted_dpi = statistics.harmonic_mean(image_dpis, weights)
-        max_dpi = max(image_dpis)
-        dpi_average_max_ratio = weighted_dpi / max_dpi
-
-        arg_max_dpi = image_dpis.index(max_dpi)
-        max_area_ratio = image_areas[arg_max_dpi] / total_drawn_area
-        return PageResolutionProfile(
-            weighted_dpi,
-            max_dpi,
-            dpi_average_max_ratio,
-            max_area_ratio,
-        )
+        pass
 
     def __repr__(self):
         """Return string representation."""
@@ -453,40 +293,37 @@ class PdfInfo:
     @property
     def pages(self) -> list[PageInfo | None]:
         """Return list of PageInfo objects, one per page in the PDF."""
-        return self._pages
+        pass
 
     @property
     def min_version(self) -> str:
         """Return minimum PDF version needed to render this PDF."""
-        # The minimum PDF is the maximum version that any particular page needs
-        return max(page.min_version for page in self.pages if page)
+        pass
 
     @property
     def has_userunit(self) -> bool:
         """Return True if any page has a user unit."""
-        return any(page.userunit != 1.0 for page in self.pages if page)
+        pass
 
     @property
     def has_acroform(self) -> bool:
         """Return True if the document catalog has an AcroForm."""
-        return self._has_acroform
+        pass
 
     @property
     def has_signature(self) -> bool:
         """Return True if the document annotations has a digital signature."""
-        return self._has_signature
+        pass
 
     @property
     def is_tagged(self) -> bool:
         """Return True if the document catalog indicates this is a Tagged PDF."""
-        return self._is_tagged
+        pass
 
     @property
     def filename(self) -> str | Path:
         """Return filename of PDF."""
-        if not isinstance(self._infile, str | Path):
-            raise NotImplementedError("can't get filename from stream")
-        return self._infile
+        pass
 
     @property
     def needs_rendering(self) -> bool:
@@ -495,7 +332,7 @@ class PdfInfo:
         XFA forms are not supported by most standard PDF renderers, so we
         need to detect and suppress them.
         """
-        return self._needs_rendering
+        pass
 
     def __getitem__(self, item) -> PageInfo:
         """Return PageInfo object for page number `item`."""

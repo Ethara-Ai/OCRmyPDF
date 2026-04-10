@@ -128,12 +128,7 @@ class OptimizeOptions(BaseModel):
     @model_validator(mode='after')
     def validate_optimization_consistency(self):
         """Validate optimization options are consistent."""
-        if self.level == 0 and any([self.png_quality > 0, self.jpeg_quality > 0]):
-            log.warning(
-                "The arguments --png-quality and --jpeg-quality "
-                "will be ignored because --optimize=0."
-            )
-        return self
+        pass
 
     def validate_with_context(
         self, external_programs_available: dict[str, bool]
@@ -143,15 +138,7 @@ class OptimizeOptions(BaseModel):
         Args:
             external_programs_available: Dict of program name -> availability
         """
-        if self.level >= 2:
-            if not external_programs_available.get('pngquant', False):
-                log.warning(
-                    "pngquant is not available, so PNG optimization will be limited"
-                )
-            if not external_programs_available.get('jbig2enc', False):
-                log.warning(
-                    "jbig2enc is not available, so JBIG2 optimization will be limited"
-                )
+        pass
 
 
 @hookimpl
@@ -203,36 +190,5 @@ def check_options(options):
         )
 
 
-@hookimpl
-def optimize_pdf(
-    input_pdf: Path,
-    output_pdf: Path,
-    context: PdfContext,
-    executor: Executor,
-    linearize: bool,
-) -> tuple[Path, Sequence[str]]:
-    save_settings = dict(
-        linearize=linearize,
-        **get_pdf_save_settings(context.options.output_type),
-    )
-    result_path = optimize(input_pdf, output_pdf, context, save_settings, executor)
-    messages = []
-    if context.options.optimize == 0:
-        messages.append("Optimization was disabled.")
-    else:
-        image_optimizers = {
-            'jbig2': jbig2enc.available(),
-            'pngquant': pngquant.available(),
-        }
-        for name, available in image_optimizers.items():
-            if not available:
-                messages.append(
-                    f"The optional dependency '{name}' was not found, so some image "
-                    f"optimizations could not be attempted."
-                )
-    return result_path, messages
 
 
-@hookimpl
-def is_optimization_enabled(context: PdfContext) -> bool:
-    return context.options.optimize != 0

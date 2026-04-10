@@ -75,11 +75,6 @@ def _set_logging_tls(tls):
     """Inject current page number (when available) into log records."""
     old_factory = logging.getLogRecordFactory()
 
-    def wrapper(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        if hasattr(tls, 'pageno'):
-            record.pageno = tls.pageno
-        return record
 
     logging.setLogRecordFactory(wrapper)
 
@@ -89,7 +84,7 @@ _set_logging_tls(tls)
 
 def set_thread_pageno(pageno: int | None):
     """Set page number (1-based) that the current thread is processing."""
-    tls.pageno = pageno
+    pass
 
 
 class PageResult(NamedTuple):
@@ -115,10 +110,6 @@ class PageResult(NamedTuple):
 
 
 class HOCRResultEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Path):
-            return {'Path': str(obj)}
-        return super().default(obj)
 
 
 class HOCRResultDecoder(json.JSONDecoder):
@@ -126,10 +117,6 @@ class HOCRResultDecoder(json.JSONDecoder):
         kwargs['object_hook'] = self.dict_to_object
         super().__init__(*args, **kwargs)
 
-    def dict_to_object(self, d):
-        if 'Path' in d:
-            return Path(d['Path'])
-        return d
 
 
 @dataclass
@@ -157,11 +144,11 @@ class HOCRResult:
     @classmethod
     def from_json(cls, json_str: str) -> HOCRResult:
         """Create an instance from a dict."""
-        return cls(**json.loads(json_str, cls=HOCRResultDecoder))
+        pass
 
     def to_json(self) -> str:
         """Serialize to a JSON string."""
-        return json.dumps(self.__dict__, cls=HOCRResultEncoder)
+        pass
 
 
 def configure_debug_logging(
@@ -175,83 +162,21 @@ def configure_debug_logging(
         log_filename: Where to the put the log file.
         prefix: The logging domain prefix that should be sent to the log.
     """
-    log_file_handler = logging.FileHandler(log_filename, delay=True)
-    log_file_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '[%(asctime)s] - %(name)s - %(levelname)7s -%(pageno)s %(message)s'
-    )
-    log_file_handler.setFormatter(formatter)
-    log_file_handler.addFilter(PageNumberFilter())
-    logging.getLogger(prefix).addHandler(log_file_handler)
-
-    def remover():
-        try:
-            logging.getLogger(prefix).removeHandler(log_file_handler)
-            log_file_handler.close()
-        except OSError as e:
-            print(e, file=sys.stderr)
-
-    return log_file_handler, remover
+    pass
 
 
 def worker_init(max_pixels: int | None) -> None:
     """Initialize a worker thread or process."""
-    # In Windows, child process will not inherit our change to this value in
-    # the parent process, so ensure workers get it set. Not needed when running
-    # threaded, but harmless to set again.
-    PIL.Image.MAX_IMAGE_PIXELS = max_pixels
-    pikepdf_enable_mmap()
+    pass
 
 
-@contextmanager
-def manage_debug_log_handler(
-    *,
-    options: OcrOptions,
-    work_folder: Path,
-):
-    remover = None
-    if (options.keep_temporary_files or options.verbose >= 1) and not os.environ.get(
-        'PYTEST_CURRENT_TEST', ''
-    ):
-        # Debug log for command line interface only with verbose output
-        # See https://github.com/pytest-dev/pytest/issues/5502 for why we skip this
-        # when pytest is running
-        _debug_log_handler, remover = configure_debug_logging(
-            work_folder / "debug.log", prefix=""
-        )  # pragma: no cover
-    try:
-        yield
-    finally:
-        if remover:
-            remover()
 
 
 def _print_temp_folder_location(work_folder: Path):
     """Print the location of the temporary work folder."""
-    msgs = [f"Temporary working files retained at:\n{work_folder}"]
-    if running_in_docker():  # pragma: no cover
-        msgs.append(
-            "OCRmyPDF is running in a Docker container, "
-            "so the files will be inside the container."
-        )
-    elif running_in_snap():  # pragma: no cover
-        msgs.append(
-            "OCRmyPDF is running in a Snap container, "
-            "so the files will be inside the container."
-        )
-    print('\n'.join(msgs), file=sys.stderr)
+    pass
 
 
-@contextmanager
-def manage_work_folder(*, work_folder: Path, retain: bool, print_location: bool):
-    try:
-        yield work_folder
-    finally:
-        if retain:
-            if print_location:
-                _print_temp_folder_location(work_folder)
-        else:
-            shutil.rmtree(work_folder, ignore_errors=True)
 
 
 def cli_exception_handler(
@@ -319,43 +244,8 @@ def cli_exception_handler(
         return ExitCode.other_error
 
 
-def setup_pipeline(
-    options: OcrOptions,
-    plugin_manager: OcrmypdfPluginManager,
-) -> Executor:
-    # Any changes to options will not take effect for options that are already
-    # bound to function parameters in the pipeline. (For example
-    # options.input_file, options.pdf_renderer are already bound.)
-    # Note: OcrOptions is immutable, so we can't modify options.jobs directly
-    # The jobs field should already be set correctly during OcrOptions creation
-
-    # Apply PIL max image pixels side effect
-    PIL.Image.MAX_IMAGE_PIXELS = int(options.max_image_mpixels * 1_000_000)
-    if PIL.Image.MAX_IMAGE_PIXELS == 0:
-        PIL.Image.MAX_IMAGE_PIXELS = None  # type: ignore
-
-    pikepdf_enable_mmap()
-    executor = setup_executor(plugin_manager)
-    return executor
 
 
-def do_get_pdfinfo(pdf_path: Path, executor: Executor, options) -> PdfInfo:
-    # Handle pages field - it might be a string that needs conversion
-    check_pages = options.pages
-    if isinstance(check_pages, str):
-        from ocrmypdf._options import _pages_from_ranges
-
-        check_pages = _pages_from_ranges(check_pages)
-
-    return get_pdfinfo(
-        pdf_path,
-        executor=executor,
-        detailed_analysis=options.redo_ocr,
-        progbar=options.progress_bar,
-        max_workers=options.jobs,
-        use_threads=options.use_threads,
-        check_pages=check_pages,
-    )
 
 
 def preprocess(
@@ -366,181 +256,25 @@ def preprocess(
     clean: bool,
 ) -> Path:
     """Preprocess an image."""
-    if remove_background:
-        image = preprocess_remove_background(image, page_context)
-    if deskew:
-        image = preprocess_deskew(image, page_context)
-    if clean:
-        image = preprocess_clean(image, page_context)
-    return image
+    pass
 
 
 def make_intermediate_images(
     page_context: PageContext, orientation_correction: int
 ) -> tuple[Path, Path | None]:
     """Create intermediate and preprocessed images for OCR."""
-    options = page_context.options
-
-    ocr_image = preprocess_out = None
-    rasterize_out = rasterize(
-        page_context.origin,
-        page_context,
-        correction=orientation_correction,
-        remove_vectors=False,
-    )
-
-    if not any([options.clean, options.clean_final, options.remove_vectors]):
-        ocr_image = preprocess_out = preprocess(
-            page_context,
-            rasterize_out,
-            options.remove_background,
-            options.deskew,
-            clean=False,
-        )
-    else:
-        if not options.lossless_reconstruction:
-            preprocess_out = preprocess(
-                page_context,
-                rasterize_out,
-                options.remove_background,
-                options.deskew,
-                clean=options.clean_final,
-            )
-        if options.remove_vectors:
-            rasterize_ocr_out = rasterize(
-                page_context.origin,
-                page_context,
-                correction=orientation_correction,
-                remove_vectors=True,
-                output_tag='_ocr',
-            )
-        else:
-            rasterize_ocr_out = rasterize_out
-
-        if (
-            preprocess_out
-            and rasterize_ocr_out == rasterize_out
-            and options.clean == options.clean_final
-        ):
-            # Optimization: image for OCR is identical to presentation image
-            ocr_image = preprocess_out
-        else:
-            ocr_image = preprocess(
-                page_context,
-                rasterize_ocr_out,
-                options.remove_background,
-                options.deskew,
-                clean=options.clean,
-            )
-    return ocr_image, preprocess_out
+    pass
 
 
 def process_page(page_context: PageContext) -> tuple[Path, Path | None, int]:
     """Process page to create OCR image, visible page image and orientation."""
-    options = page_context.options
-    orientation_correction = 0
-    if options.rotate_pages:
-        # Rasterize
-        rasterize_preview_out = rasterize_preview(page_context.origin, page_context)
-        orientation_correction = get_orientation_correction(
-            rasterize_preview_out, page_context
-        )
-
-    ocr_image, preprocess_out = make_intermediate_images(
-        page_context, orientation_correction
-    )
-    ocr_image_out = create_ocr_image(ocr_image, page_context)
-
-    pdf_page_from_image_out = None
-    if not options.lossless_reconstruction:
-        assert preprocess_out
-        visible_image_out = preprocess_out
-        if should_visible_page_image_use_jpg(page_context.pageinfo):
-            visible_image_out = create_visible_page_jpg(visible_image_out, page_context)
-        filtered_image = page_context.plugin_manager.filter_page_image(
-            page=page_context, image_filename=visible_image_out
-        )
-        if filtered_image is not None:  # None if no hook is present
-            visible_image_out = filtered_image
-        pdf_page_from_image_out = create_pdf_page_from_image(
-            visible_image_out, page_context, orientation_correction
-        )
-    return ocr_image_out, pdf_page_from_image_out, orientation_correction
+    pass
 
 
 def postprocess(
     pdf_file: Path, context: PdfContext, executor: Executor
 ) -> tuple[Path, Sequence[str]]:
     """Postprocess the PDF file."""
-    # pdf_out = pdf_file
-    with Pdf.open(pdf_file) as pdf:
-        fix_annots = context.get_path('fix_annots.pdf')
-        if remove_broken_goto_annotations(pdf):
-            pdf.save(fix_annots)
-            pdf_out = fix_annots
-        else:
-            pdf_out = pdf_file
-    if context.options.output_type == 'auto':
-        # Best effort PDF/A - never uses Ghostscript
-        pdf_out, actual_type = try_auto_pdfa(pdf_out, context)
-        # Store actual output type for reporting
-        context.options.extra_attrs['_actual_output_type'] = actual_type
-    elif context.options.output_type.startswith('pdfa'):
-        # Required PDF/A - uses Ghostscript as fallback
-        speculative_result = try_speculative_pdfa(pdf_out, context)
-        if speculative_result is not None:
-            pdf_out = speculative_result
-        else:
-            # Fall back to Ghostscript conversion
-            ps_stub_out = generate_postscript_stub(context)
-            pdf_out = convert_to_pdfa(pdf_out, ps_stub_out, context)
-
-    optimizing = context.plugin_manager.is_optimization_enabled(context=context)
-    save_settings = get_pdf_save_settings(context.options.output_type)
-    save_settings['linearize'] = not optimizing and should_linearize(pdf_out, context)
-
-    pdf_out = metadata_fixup(pdf_out, context, pdf_save_settings=save_settings)
-    return optimize_pdf(pdf_out, context, executor)
+    pass
 
 
-def report_output_pdf(options, start_input_file, optimize_messages) -> ExitCode:
-    if options.output_file == '-':
-        log.info("Output sent to stdout")
-    elif hasattr(options.output_file, 'writable') and options.output_file.writable():
-        log.info("Output written to stream")
-    elif samefile(options.output_file, Path(os.devnull)):
-        pass  # Say nothing when sending to dev null
-    else:
-        if options.output_type == 'auto':
-            # For 'auto' mode, check what we actually produced
-            actual_type = options.extra_attrs.get('_actual_output_type', 'pdf')
-            pdfa_info = file_claims_pdfa(options.output_file)
-            if actual_type == 'pdfa' and pdfa_info['pass']:
-                log.info(
-                    "Output file is a %s (auto mode achieved PDF/A)",
-                    pdfa_info['conformance'],
-                )
-            elif pdfa_info['pass']:
-                # Unexpectedly got PDF/A
-                log.info("Output file is a %s", pdfa_info['conformance'])
-            else:
-                # Regular PDF - this is expected for auto mode fallback
-                log.info("Output file is a PDF (auto mode)")
-        elif options.output_type.startswith('pdfa'):
-            pdfa_info = file_claims_pdfa(options.output_file)
-            if pdfa_info['pass']:
-                log.info("Output file is a %s (as expected)", pdfa_info['conformance'])
-            else:
-                log.warning(
-                    "Output file is a valid PDF, but conversion to PDF/A did not "
-                    "succeed (issue: %s)",
-                    pdfa_info['conformance'],
-                )
-                return ExitCode.pdfa_conversion_failed
-        if not check_pdf(options.output_file):
-            log.warning('Output file: The generated PDF is INVALID')
-            return ExitCode.invalid_output_pdf
-        report_output_file_size(
-            options, start_input_file, options.output_file, optimize_messages
-        )
-    return ExitCode.ok

@@ -172,24 +172,7 @@ def rasterize_pdf_page(
     use_cropbox,
 ):
     """Rasterize a single page of a PDF file using Ghostscript."""
-    # Check if user explicitly requested a different rasterizer
-    if options is not None and options.rasterizer == 'pypdfium':
-        # Let pypdfium handle it (it will error in check_options if unavailable)
-        return None
-
-    ghostscript.rasterize_pdf(
-        input_file,
-        output_file,
-        raster_device=raster_device,
-        raster_dpi=raster_dpi,
-        pageno=pageno,
-        page_dpi=page_dpi,
-        rotation=rotation,
-        filter_vector=filter_vector,
-        stop_on_error=stop_on_soft_error,
-        use_cropbox=use_cropbox,
-    )
-    return output_file
+    pass
 
 
 def _collect_dctdecode_images(pdf: Pdf) -> dict[tuple, list[tuple[Stream, bytes]]]:
@@ -198,63 +181,7 @@ def _collect_dctdecode_images(pdf: Pdf) -> dict[tuple, list[tuple[Stream, bytes]
     Returns a dict mapping image signatures to a list of (stream, raw_bytes) tuples.
     The signature is (Width, Height, Filter, BitsPerComponent, ColorSpace).
     """
-    images: dict[tuple, list[tuple[Stream, bytes]]] = {}
-
-    def get_colorspace_key(obj):
-        """Get a hashable key for the colorspace."""
-        cs = obj.get(Name.ColorSpace)
-        if cs is None:
-            return None
-        if isinstance(cs, Name):
-            return str(cs)
-        # For array colorspaces like [/ICCBased ...], use the first element
-        try:
-            return str(cs[0]) if len(cs) > 0 else str(cs)
-        except (TypeError, KeyError):
-            return str(cs)
-
-    def process_xobject_dict(xobjects, depth=0):
-        """Process an XObject dictionary for DCTDecode images."""
-        if xobjects is None:
-            return
-        if depth > 10:
-            log.warning("Recursion depth exceeded in _collect_dctdecode_images")
-            return
-        for key in xobjects.keys():
-            obj = xobjects[key]
-            if obj is None:
-                continue
-            # Check if it's an image with DCTDecode
-            if obj.get(Name.Subtype) == Name.Image:
-                filt = obj.get(Name.Filter)
-                if filt == Name.DCTDecode:
-                    sig = (
-                        int(obj.get(Name.Width, 0)),
-                        int(obj.get(Name.Height, 0)),
-                        str(filt),
-                        int(obj.get(Name.BitsPerComponent, 0)),
-                        get_colorspace_key(obj),
-                    )
-                    raw_bytes = obj.read_raw_bytes()
-                    if sig not in images:
-                        images[sig] = []
-                    images[sig].append((obj, raw_bytes))
-            # Recurse into Form XObjects
-            elif obj.get(Name.Subtype) == Name.Form:
-                if Name.Resources in obj:
-                    res = obj[Name.Resources]
-                    if Name.XObject in res:
-                        process_xobject_dict(res[Name.XObject], depth=depth + 1)
-
-    for page in pdf.pages:
-        if Name.Resources not in page:
-            continue
-        resources = page[Name.Resources]
-        if Name.XObject not in resources:
-            continue
-        process_xobject_dict(resources[Name.XObject])
-
-    return images
+    pass
 
 
 def _repair_gs106_jpeg_corruption(
@@ -269,65 +196,7 @@ def _repair_gs106_jpeg_corruption(
 
     Returns True if any repairs were made.
     """
-    repaired_count = 0
-    first_error_logged = False
-
-    with (
-        Pdf.open(input_pdf_path) as input_pdf,
-        Pdf.open(output_pdf_path, allow_overwriting_input=True) as output_pdf,
-    ):
-        # Collect all DCTDecode images from both PDFs
-        input_images = _collect_dctdecode_images(input_pdf)
-        output_images = _collect_dctdecode_images(output_pdf)
-
-        # For each output image, try to find a corresponding input image
-        for sig, output_list in output_images.items():
-            if sig not in input_images:
-                continue
-            input_list = input_images[sig]
-
-            for output_stream, output_bytes in output_list:
-                # Try to find a matching input image
-                for _input_stream, input_bytes in input_list:
-                    input_len = len(input_bytes)
-                    output_len = len(output_bytes)
-
-                    # Check if output is 1-15 bytes shorter
-                    diff = input_len - output_len
-                    if not (1 <= diff <= 15):
-                        continue
-
-                    # Check if the bytes are identical up to the truncation point
-                    if output_bytes != input_bytes[:output_len]:
-                        continue
-
-                    # This is a corrupt image - repair it
-                    if not first_error_logged:
-                        log.error(
-                            "Ghostscript 10.6 JPEG corruption detected. "
-                            "Repairing damaged images from original PDF."
-                        )
-                        first_error_logged = True
-                    log.warning(
-                        f"Replacing corrupt JPEG image "
-                        f"({sig[0]}x{sig[1]}, {diff} bytes truncated)"
-                    )
-
-                    # Write the original bytes back to the output stream
-                    output_stream.write(
-                        input_bytes,
-                        filter=Name.DCTDecode,
-                    )
-                    repaired_count += 1
-                    break  # Move to next output image
-
-        if repaired_count > 0:
-            output_pdf.save(output_pdf_path)
-            log.info(
-                f"Repaired {repaired_count} JPEG image(s) corrupted by Ghostscript"
-            )
-
-    return repaired_count > 0
+    pass
 
 
 @hookimpl
@@ -342,26 +211,4 @@ def generate_pdfa(
     stop_on_soft_error,
 ):
     """Generate a PDF/A from the list of PDF pages and PDF/A metadata."""
-    # Normalize output_type at point of use
-    output_type = context.options.output_type
-    if output_type == 'pdfa':
-        output_type = 'pdfa-2'
-
-    ghostscript.generate_pdfa(
-        pdf_pages=[pdfmark, *pdf_pages],
-        output_file=output_file,
-        compression=context.options.ghostscript.pdfa_image_compression,
-        color_conversion_strategy=context.options.ghostscript.color_conversion_strategy,
-        pdf_version=pdf_version,
-        pdfa_part=pdfa_part,
-        progressbar_class=progressbar_class,
-        stop_on_error=stop_on_soft_error,
-    )
-
-    # Repair JPEG corruption caused by Ghostscript 10.6.x
-    gs_version = ghostscript.version()
-    if gs_version >= Version('10.6.0') and len(pdf_pages) == 1:
-        input_pdf = Path(pdf_pages[0])
-        _repair_gs106_jpeg_corruption(input_pdf, Path(output_file))
-
-    return output_file
+    pass

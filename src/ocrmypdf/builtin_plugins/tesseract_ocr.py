@@ -38,20 +38,7 @@ def _thresholding_method_converter(value: str) -> ThresholdingMethod:
     Raises:
         argparse.ArgumentTypeError: If value is not a valid thresholding method
     """
-    method_map = {
-        'auto': ThresholdingMethod.AUTO,
-        'otsu': ThresholdingMethod.OTSU,
-        'adaptive-otsu': ThresholdingMethod.ADAPTIVE_OTSU,
-        'sauvola': ThresholdingMethod.SAUVOLA,
-    }
-    if value.lower() not in method_map:
-        import argparse
-
-        valid = ', '.join(method_map.keys())
-        raise argparse.ArgumentTypeError(
-            f"Invalid thresholding method '{value}'. Must be one of: {valid}"
-        )
-    return method_map[value.lower()]
+    pass
 
 
 class TesseractOptions(BaseModel):
@@ -249,30 +236,18 @@ class TesseractOptions(BaseModel):
     @classmethod
     def validate_timeout_reasonable(cls, v):
         """Validate timeout values are reasonable."""
-        if v > 3600:  # 1 hour
-            log.warning(f"Timeout of {v} seconds is very long and may cause issues")
-        return v
+        pass
 
     @field_validator('pagesegmode')
     @classmethod
     def validate_pagesegmode_warning(cls, v):
         """Validate page segmentation mode and warn about problematic values."""
-        if v in (0, 2):
-            log.warning(
-                "The tesseract-pagesegmode you selected will disable OCR. "
-                "This may cause processing to fail."
-            )
-        return v
+        pass
 
     @model_validator(mode='after')
     def validate_downsample_consistency(self):
         """Validate downsample options are consistent."""
-        if self.downsample_above != 32767 and not self.downsample_large_images:
-            log.warning(
-                "The --tesseract-downsample-above argument will have no effect unless "
-                "--tesseract-downsample-large-images is also given."
-            )
-        return self
+        pass
 
     def validate_with_context(self, languages: list[str]) -> None:
         """Validate options that require external context.
@@ -280,15 +255,7 @@ class TesseractOptions(BaseModel):
         Args:
             languages: List of languages being used for OCR
         """
-        # Validate languages are not internal Tesseract languages
-        DENIED_LANGUAGES = {'equ', 'osd'}
-        if DENIED_LANGUAGES & set(languages):
-            raise BadArgsError(
-                "The following languages are for Tesseract's internal use "
-                "and should not be issued explicitly: "
-                f"{', '.join(DENIED_LANGUAGES & set(languages))}\n"
-                "Remove them from the -l/--language argument."
-            )
+        pass
 
 
 @hookimpl
@@ -332,33 +299,6 @@ def check_options(options):
         )
 
 
-@hookimpl
-def validate(pdfinfo, options):
-    # Tesseract 4.x can be multithreaded, and we also run multiple workers. We want
-    # to manage how many threads it uses to avoid creating total threads than cores.
-    # Performance testing shows we're better off
-    # parallelizing ocrmypdf and forcing Tesseract to be single threaded, which we
-    # get by setting the envvar OMP_THREAD_LIMIT to 1. But if the page count of the
-    # input file is small, then we allow Tesseract to use threads, subject to the
-    # constraint: (ocrmypdf workers) * (tesseract threads) <= max_workers.
-    # As of Tesseract 4.1, 3 threads is the most effective on a 4 core/8 thread system.
-    if not os.environ.get('OMP_THREAD_LIMIT', '').isnumeric():
-        jobs = options.jobs or available_cpu_count()
-        tess_threads = clamp(jobs // len(pdfinfo), 1, 3)
-    else:
-        tess_threads = int(os.environ['OMP_THREAD_LIMIT'])
-    # Store the thread limit in options - it will be passed to subprocess env
-    options.tesseract.omp_thread_limit = tess_threads
-    log.debug("Using Tesseract OpenMP thread limit %d", tess_threads)
-
-    if (
-        options.tesseract.downsample_above != 32767
-        and not options.tesseract.downsample_large_images
-    ):
-        log.warning(
-            "The --tesseract-downsample-above argument will have no effect unless "
-            "--tesseract-downsample-large-images is also given."
-        )
 
 
 @hookimpl
@@ -369,17 +309,7 @@ def filter_ocr_image(page: PageContext, image: Image.Image) -> Image.Image:
     or more than 2**31 bytes. This function resizes the image to fit within
     those limits.
     """
-    options = page.options
-    if getattr(options, 'tesseract', None) is None:
-        return image
-    threshold = min(options.tesseract.downsample_above, 32767)
-
-    if options.tesseract.downsample_large_images:
-        size = calculate_downsample(
-            image, max_size=(threshold, threshold), max_bytes=(2**31) - 1
-        )
-        image = downsample_image(image, size)
-    return image
+    pass
 
 
 class TesseractOcrEngine(OcrEngine):
@@ -392,22 +322,8 @@ class TesseractOcrEngine(OcrEngine):
     @staticmethod
     def _determine_renderer(options):
         """Determine the PDF renderer to use based on options and languages."""
-        if options.pdf_renderer == 'auto':
-            return 'fpdf2'
-        return options.pdf_renderer
+        pass
 
-    @staticmethod
-    def creator_tag(options):
-        renderer = TesseractOcrEngine._determine_renderer(options)
-        match renderer:
-            case 'hocr':
-                return f"OCRmyPDF hOCR + Tesseract OCR {TesseractOcrEngine.version()}"
-            case 'fpdf2':
-                return f"OCRmyPDF fpdf2 + Tesseract OCR {TesseractOcrEngine.version()}"
-            case "sandwich":
-                return f"Tesseract OCR + PDF {TesseractOcrEngine.version()}"
-            case _:
-                return f"Tesseract OCR {TesseractOcrEngine.version()}"
 
     def __str__(self):
         return f"Tesseract OCR {TesseractOcrEngine.version()}"
@@ -416,58 +332,9 @@ class TesseractOcrEngine(OcrEngine):
     def languages(options):
         return tesseract.get_languages()
 
-    @staticmethod
-    def get_orientation(input_file, options):
-        return tesseract.get_orientation(
-            input_file,
-            engine_mode=options.tesseract.oem,
-            timeout=options.tesseract.non_ocr_timeout,
-            omp_thread_limit=options.tesseract.omp_thread_limit,
-        )
 
-    @staticmethod
-    def get_deskew(input_file, options) -> float:
-        return tesseract.get_deskew(
-            input_file,
-            languages=options.languages,
-            engine_mode=options.tesseract.oem,
-            timeout=options.tesseract.non_ocr_timeout,
-            omp_thread_limit=options.tesseract.omp_thread_limit,
-        )
 
-    @staticmethod
-    def generate_hocr(input_file, output_hocr, output_text, options):
-        tesseract.generate_hocr(
-            input_file=input_file,
-            output_hocr=output_hocr,
-            output_text=output_text,
-            languages=options.languages,
-            engine_mode=options.tesseract.oem,
-            tessconfig=options.tesseract.config,
-            timeout=options.tesseract.timeout,
-            pagesegmode=options.tesseract.pagesegmode,
-            thresholding=options.tesseract.thresholding,
-            user_words=options.tesseract.user_words,
-            user_patterns=options.tesseract.user_patterns,
-            omp_thread_limit=options.tesseract.omp_thread_limit,
-        )
 
-    @staticmethod
-    def generate_pdf(input_file, output_pdf, output_text, options):
-        tesseract.generate_pdf(
-            input_file=input_file,
-            output_pdf=output_pdf,
-            output_text=output_text,
-            languages=options.languages,
-            engine_mode=options.tesseract.oem,
-            tessconfig=options.tesseract.config,
-            timeout=options.tesseract.timeout,
-            pagesegmode=options.tesseract.pagesegmode,
-            thresholding=options.tesseract.thresholding,
-            user_words=options.tesseract.user_words,
-            user_patterns=options.tesseract.user_patterns,
-            omp_thread_limit=options.tesseract.omp_thread_limit,
-        )
 
 
 @hookimpl

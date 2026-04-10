@@ -282,7 +282,7 @@ class SystemFontProvider:
         Returns:
             List of logical font names
         """
-        return list(self.NOTO_FONT_PATTERNS.keys())
+        pass
 
     def get_fallback_font(self) -> FontManager:
         """Get the glyphless fallback font.

@@ -846,7 +846,4 @@ ISO_639_3 = {
 
 def iso_639_2_from_3(iso3: str) -> str:
     """Convert ISO 639-3 code to ISO 639-2 code."""
-    if iso3 in ISO_639_3:
-        return ISO_639_3[iso3].alpha_2
-    else:
-        return ""
+    pass

@@ -65,8 +65,7 @@ class FontManager:
         Returns:
             True if font has a real glyph (not .notdef)
         """
-        glyph_id = self.hb_font.get_nominal_glyph(codepoint)
-        return glyph_id is not None and glyph_id != 0
+        pass
 
     def get_font_metrics(self) -> tuple[float, float, float]:
         """Get normalized font metrics (ascent, descent, units_per_em).
@@ -94,22 +93,4 @@ class FontManager:
         Returns:
             Left side bearing in points. Returns 0 if character not found.
         """
-        if not char:
-            return 0.0
-
-        codepoint = ord(char)
-        glyph_id = self.hb_font.get_nominal_glyph(codepoint)
-        if glyph_id is None or glyph_id == 0:
-            return 0.0
-
-        # Get glyph extents which include left/right bearing info
-        extents = self.hb_font.get_glyph_extents(glyph_id)
-        if extents is None:
-            return 0.0
-
-        # x_bearing is the left side bearing in font units
-        units_per_em = self.hb_face.upem
-        lsb_units = extents.x_bearing
-        lsb_pt = lsb_units * font_size / units_per_em
-
-        return lsb_pt
+        pass

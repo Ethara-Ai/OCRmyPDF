@@ -14,13 +14,6 @@ from rich.logging import RichHandler
 class PageNumberFilter(logging.Filter):
     """Insert PDF page number that emitted log message to log record."""
 
-    def filter(self, record):
-        pageno = getattr(record, 'pageno', None)
-        if isinstance(pageno, int):
-            record.pageno = f'{pageno:5d} '
-        elif pageno is None:
-            record.pageno = ''
-        return True
 
 
 class RichLoggingHandler(RichHandler):

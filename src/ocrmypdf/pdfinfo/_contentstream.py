@@ -62,20 +62,12 @@ class TextMarker:
 
 def _is_unit_square(shorthand):
     """Check if the shorthand represents a unit square transformation."""
-    values = map(float, shorthand)
-    pairwise = zip(values, UNIT_SQUARE, strict=False)
-    return all(isclose(a, b, rel_tol=1e-3) for a, b in pairwise)
+    pass
 
 
 def _normalize_stack(graphobjs):
     """Convert runs of qQ's in the stack into single graphobjs."""
-    for operands, operator in graphobjs:
-        operator = str(operator)
-        if re.match(r'Q*q+$', operator):  # Zero or more Q, one or more q
-            for char in operator:  # Split into individual
-                yield ([], char)  # Yield individual
-        else:
-            yield (operands, operator)
+    pass
 
 
 def _interpret_contents(contentstream: Object, initial_shorthand=UNIT_SQUARE):
@@ -104,70 +96,7 @@ def _interpret_contents(contentstream: Object, initial_shorthand=UNIT_SQUARE):
     undefined in the spec, but we just pretend nothing happened and leave the
     CTM unchanged.
     """
-    stack = []
-    ctm = Matrix(initial_shorthand)
-    xobject_settings: list[XobjectSettings] = []
-    inline_images: list[InlineSettings] = []
-    name_index = defaultdict(lambda: [])
-    found_vector = False
-    found_text = False
-    vector_ops = set('S s f F f* B B* b b*'.split())
-    text_showing_ops = set("""TJ Tj " '""".split())
-    image_ops = set('BI ID EI q Q Do cm'.split())
-    operator_whitelist = ' '.join(vector_ops | text_showing_ops | image_ops)
-
-    for n, graphobj in enumerate(
-        _normalize_stack(parse_content_stream(contentstream, operator_whitelist))
-    ):
-        operands, operator = graphobj
-        if operator == 'q':
-            stack.append(ctm)
-            if len(stack) > 32:  # See docstring
-                if len(stack) > 128:
-                    raise RuntimeError(
-                        f"PDF graphics stack overflowed hard limit at operator {n}"
-                    )
-                warn("PDF graphics stack overflowed spec limit")
-        elif operator == 'Q':
-            try:
-                ctm = stack.pop()
-            except IndexError:
-                # Keeping the ctm the same seems to be the only sensible thing
-                # to do. Just pretend nothing happened, keep calm and carry on.
-                warn("PDF graphics stack underflowed - PDF may be malformed")
-        elif operator == 'cm':
-            try:
-                ctm = Matrix(operands) @ ctm
-            except ValueError as e:
-                raise InputFileError(
-                    "PDF content stream is corrupt - this PDF is malformed. "
-                    "Use a PDF editor that is capable of visually inspecting the PDF."
-                ) from e
-        elif operator == 'Do':
-            image_name = operands[0]
-            settings = XobjectSettings(
-                name=image_name, shorthand=ctm.shorthand, stack_depth=len(stack)
-            )
-            xobject_settings.append(settings)
-            name_index[str(image_name)].append(settings)
-        elif operator == 'INLINE IMAGE':  # BI/ID/EI are grouped into this
-            iimage = operands[0]
-            inline = InlineSettings(
-                iimage=iimage, shorthand=ctm.shorthand, stack_depth=len(stack)
-            )
-            inline_images.append(inline)
-        elif operator in vector_ops:
-            found_vector = True
-        elif operator in text_showing_ops:
-            found_text = True
-
-    return ContentsInfo(
-        xobject_settings=xobject_settings,
-        inline_images=inline_images,
-        found_vector=found_vector,
-        found_text=found_text,
-        name_index=name_index,
-    )
+    pass
 
 
 def _get_dpi(ctm_shorthand, image_size) -> Resolution:
@@ -216,16 +145,4 @@ def _get_dpi(ctm_shorthand, image_size) -> Resolution:
     /MediaBox.
 
     """
-    a, b, c, d, _, _ = ctm_shorthand  # pylint: disable=invalid-name
-
-    # Calculate the width and height of the image in PDF units
-    image_drawn = hypot(a, b), hypot(c, d)
-
-    def calc(drawn, pixels, inches_per_pt=72.0):
-        # The scale of the image is pixels per unit of default user space (1/72")
-        scale = pixels / drawn if drawn != 0 else inf
-        dpi = scale * inches_per_pt
-        return dpi
-
-    dpi_w, dpi_h = (calc(image_drawn[n], image_size[n]) for n in range(2))
-    return Resolution(dpi_w, dpi_h)
+    pass

@@ -50,13 +50,7 @@ def output_type_to_flavour(output_type: str) -> str:
     Returns:
         verapdf flavour string like '1b', '2b', '3b'
     """
-    mapping = {
-        'pdfa': '2b',
-        'pdfa-1': '1b',
-        'pdfa-2': '2b',
-        'pdfa-3': '3b',
-    }
-    return mapping.get(output_type, '2b')
+    pass
 
 
 def validate(input_file: Path, flavour: str) -> ValidationResult:
@@ -69,40 +63,4 @@ def validate(input_file: Path, flavour: str) -> ValidationResult:
     Returns:
         ValidationResult with validation status
     """
-    args = [
-        'verapdf',
-        '--format',
-        'json',
-        '--flavour',
-        flavour,
-        str(input_file),
-    ]
-
-    try:
-        proc = run(args, stdout=PIPE, stderr=PIPE, check=False)
-    except FileNotFoundError as e:
-        raise MissingDependencyError('verapdf') from e
-
-    try:
-        result = json.loads(proc.stdout)
-        jobs = result.get('report', {}).get('jobs', [])
-        if not jobs:
-            return ValidationResult(False, -1, 'No validation jobs in result')
-        validation_results = jobs[0].get('validationResult', [])
-        if not validation_results:
-            return ValidationResult(False, -1, 'No validation result in output')
-        validation_result = validation_results[0]
-        details = validation_result.get('details', {})
-        failed_rules = details.get('failedRules', 0)
-
-        if failed_rules == 0:
-            return ValidationResult(True, 0, 'PDF/A validation passed')
-        else:
-            return ValidationResult(
-                False,
-                failed_rules,
-                f'PDF/A validation failed with {failed_rules} rule violations',
-            )
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
-        log.debug('Failed to parse verapdf output: %s', e)
-        return ValidationResult(False, -1, f'Failed to parse verapdf output: {e}')
+    pass

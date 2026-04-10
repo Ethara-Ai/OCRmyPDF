@@ -47,4 +47,4 @@ class PluginOptionRegistry:
 
     def get_registered_models(self) -> dict[str, type[BaseModel]]:
         """Get all registered plugin option models."""
-        return self._option_models.copy()
+        pass

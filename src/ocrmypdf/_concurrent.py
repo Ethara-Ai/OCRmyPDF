@@ -15,12 +15,8 @@ from ocrmypdf._progressbar import NullProgressBar, ProgressBar
 T = TypeVar('T')
 
 
-def _task_noop(*_args, **_kwargs) -> None:
-    return
 
 
-def _task_finished_noop(_result: Any, pbar: ProgressBar):
-    pbar.update()
 
 
 class Executor(ABC):
@@ -100,9 +96,6 @@ class Executor(ABC):
         """Custom executors should override this method."""
 
 
-def setup_executor(plugin_manager) -> Executor:
-    pbar_class = plugin_manager.get_progressbar_class()
-    return plugin_manager.get_executor(progressbar_class=pbar_class)
 
 
 class SerialExecutor(Executor):
@@ -112,18 +105,3 @@ class SerialExecutor(Executor):
     in order. As such, ``worker_initializer`` will never be called.
     """
 
-    def _execute(
-        self,
-        *,
-        use_threads: bool,
-        max_workers: int,
-        progress_kwargs: dict,
-        worker_initializer: Callable,
-        task: Callable,
-        task_arguments: Iterable,
-        task_finished: Callable,
-    ):  # pylint: disable=unused-argument
-        with self.pbar_class(**progress_kwargs) as pbar:
-            for args in task_arguments:
-                result = task(*args)
-                task_finished(result, pbar)

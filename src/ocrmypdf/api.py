@@ -252,35 +252,7 @@ def _check_no_conflicting_ocr_params(
     Raises:
         ValueError: If conflicting parameters are found.
     """
-    if excluded is None:
-        excluded = set()
-
-    # Parameters that are allowed alongside OcrOptions
-    allowed_with_options = {
-        'input_file_or_options',
-        'options',  # The OcrOptions object itself after assignment
-        'plugins',
-        'plugin_manager',
-        'kwargs',
-    } | excluded
-
-    # Check all locals that are OCR parameters (not None and not allowed)
-    conflicts = [
-        name
-        for name, value in locals_dict.items()
-        if value is not None and name not in allowed_with_options
-    ]
-
-    # Check kwargs
-    conflicts.extend(kwargs.keys())
-
-    if conflicts:
-        raise ValueError(
-            f"When passing OcrOptions as the first argument, do not pass "
-            f"additional OCR parameters. Conflicting parameters: "
-            f"{', '.join(sorted(conflicts))}. "
-            f"Set these values in OcrOptions instead."
-        )
+    pass
 
 
 def _remap_language_to_languages(options_kwargs: dict) -> None:
@@ -291,24 +263,7 @@ def _remap_language_to_languages(options_kwargs: dict) -> None:
     and splits '+'-separated language codes (e.g. 'eng+deu' -> ['eng', 'deu'])
     to match the CLI behavior.
     """
-    if 'language' in options_kwargs and 'languages' not in options_kwargs:
-        lang = options_kwargs.pop('language')
-        if lang is None:
-            return
-        if isinstance(lang, str):
-            lang = lang.split('+')
-        else:
-            # Flatten any '+'-separated entries in the list
-            expanded: list[str] = []
-            for item in lang:
-                if isinstance(item, str) and '+' in item:
-                    expanded.extend(item.split('+'))
-                else:
-                    expanded.append(item)
-            lang = expanded
-        options_kwargs['languages'] = lang
-    elif 'language' in options_kwargs:
-        del options_kwargs['language']
+    pass
 
 
 def create_options(
@@ -329,50 +284,7 @@ def create_options(
     Raises:
         TypeError: If the type of a keyword argument is not supported.
     """
-    # Prepare kwargs for direct OcrOptions construction
-    options_kwargs = kwargs.copy()
-
-    # Map API parameter 'language' to OcrOptions field 'languages'
-    _remap_language_to_languages(options_kwargs)
-
-    # Set input and output files
-    options_kwargs['input_file'] = input_file
-    options_kwargs['output_file'] = output_file
-
-    # Handle special stream cases for sidecar
-    if 'sidecar' in options_kwargs and isinstance(
-        options_kwargs['sidecar'], BinaryIO | IOBase
-    ):
-        # Keep the stream object as-is - OcrOptions can handle it
-        pass
-
-    # Remove None values to let OcrOptions use its defaults
-    options_kwargs = {k: v for k, v in options_kwargs.items() if v is not None}
-
-    # Remove any kwargs that aren't OcrOptions fields and store in extra_attrs
-    extra_attrs = {}
-    ocr_fields = set(OcrOptions.model_fields.keys())
-    # Legacy mode flags are handled by OcrOptions model validator
-    legacy_mode_flags = {'force_ocr', 'skip_text', 'redo_ocr'}
-
-    # Known extra attributes that should be preserved
-    known_extra = {'progress_bar', 'plugins'}
-
-    for key in list(options_kwargs.keys()):
-        if key in ocr_fields or key in legacy_mode_flags or key in known_extra:
-            continue
-        extra_attrs[key] = options_kwargs.pop(key)
-
-    # Create OcrOptions directly
-    try:
-        options = OcrOptions(**options_kwargs)
-        # Add any extra attributes
-        if extra_attrs:
-            options.extra_attrs.update(extra_attrs)
-        return options
-    except Exception as e:
-        # If direct construction fails, provide a helpful error message
-        raise TypeError(f"Failed to create OcrOptions: {e}") from e
+    pass
 
 
 @overload
@@ -595,112 +507,7 @@ def ocr(  # noqa: D417
     Returns:
         :class:`ocrmypdf.ExitCode`
     """
-    # Detect calling convention: OcrOptions object vs individual parameters
-    if isinstance(input_file_or_options, OcrOptions):
-        # New-style API: OcrOptions passed directly
-        options = input_file_or_options
-
-        # Check for conflicting parameters
-        # (all should be None except plugins/plugin_manager)
-        _check_no_conflicting_ocr_params(locals(), kwargs)
-
-        # plugins and plugin_manager can still be passed alongside OcrOptions
-        if plugins and plugin_manager:
-            raise ValueError("plugins= and plugin_manager are mutually exclusive")
-
-        # Use plugins from OcrOptions if not explicitly passed
-        if plugins is None:
-            plugins = options.plugins or []
-
-        if isinstance(plugins, str | Path):
-            plugins = [plugins]
-        else:
-            plugins = list(plugins) if plugins else []
-
-        # Run the pipeline with the OcrOptions
-        with _api_lock:
-            plugin_manager = setup_plugin_infrastructure(
-                plugins=plugins, plugin_manager=plugin_manager
-            )
-
-            parser = get_parser()
-            plugin_manager.add_options(parser=parser)
-
-            check_options(options, plugin_manager)
-            return run_pipeline(options=options, plugin_manager=plugin_manager)
-
-    else:
-        # Old-style API: positional arguments
-        input_file = input_file_or_options
-
-        if output_file is None:
-            raise TypeError(
-                "ocr() missing required argument: 'output_file'. "
-                "Either pass output_file as the second argument, or pass "
-                "an OcrOptions object as the first argument."
-            )
-
-        if plugins and plugin_manager:
-            raise ValueError("plugins= and plugin_manager are mutually exclusive")
-
-        if not plugins:
-            plugins = []
-        elif isinstance(plugins, str | Path):
-            plugins = [plugins]
-        else:
-            plugins = list(plugins)
-
-        # No new variable names should be assigned until these two steps are run
-        create_options_kwargs = {
-            k: v
-            for k, v in locals().items()
-            if k
-            not in {
-                'input_file_or_options',
-                'input_file',
-                'output_file',
-                'kwargs',
-                'plugin_manager',
-            }
-        }
-        create_options_kwargs.update(kwargs)
-
-        parser = get_parser()
-        with _api_lock:
-            # Set up plugin infrastructure with proper initialization
-            plugin_manager = setup_plugin_infrastructure(
-                plugins=plugins, plugin_manager=plugin_manager
-            )
-
-            # Get parser and let plugins add their options
-            parser = get_parser()
-            plugin_manager.add_options(parser=parser)
-
-            if 'verbose' in kwargs:
-                warn(
-                    "ocrmypdf.ocr(verbose=) is ignored. "
-                    "Use ocrmypdf.configure_logging()."
-                )
-
-            # Warn about deprecated jbig2 options and remove from kwargs
-            if jbig2_lossy:
-                warn(
-                    "jbig2_lossy is deprecated and will be ignored. "
-                    "Lossy JBIG2 has been removed due to character substitution risks."
-                )
-                create_options_kwargs.pop('jbig2_lossy', None)
-            if jbig2_page_group_size:
-                warn("jbig2_page_group_size is deprecated and will be ignored.")
-                create_options_kwargs.pop('jbig2_page_group_size', None)
-
-            options = create_options(
-                input_file=input_file,
-                output_file=output_file,
-                parser=parser,
-                **create_options_kwargs,
-            )
-            check_options(options, plugin_manager)
-            return run_pipeline(options=options, plugin_manager=plugin_manager)
+    pass
 
 
 def _pdf_to_hocr(  # noqa: D417
@@ -769,77 +576,7 @@ def _pdf_to_hocr(  # noqa: D417
         output_folder: Output folder path.
         **kwargs: Keyword arguments.
     """
-    if plugins and plugin_manager:
-        raise ValueError("plugins= and plugin_manager are mutually exclusive")
-
-    if not plugins:
-        plugins = []
-    elif isinstance(plugins, str | Path):
-        plugins = [plugins]
-    else:
-        plugins = list(plugins)
-
-    # Prepare kwargs for direct OcrOptions construction
-    options_kwargs = kwargs.copy()
-
-    # Set input file and handle special output_folder case
-    options_kwargs['input_file'] = input_pdf
-    options_kwargs['output_file'] = '/dev/null'  # Placeholder for hOCR pipeline
-
-    # Add all the function parameters
-    for param_name, param_value in locals().items():
-        if (
-            param_name
-            not in {'input_pdf', 'output_folder', 'kwargs', 'plugin_manager', 'plugins'}
-            and param_value is not None
-        ):
-            options_kwargs[param_name] = param_value
-
-    # Map API parameter 'language' to OcrOptions field 'languages'
-    _remap_language_to_languages(options_kwargs)
-
-    # Handle plugins
-    if plugins:
-        options_kwargs['plugins'] = plugins
-
-    # Remove None values to let OcrOptions use its defaults
-    options_kwargs = {k: v for k, v in options_kwargs.items() if v is not None}
-
-    # Add output_folder to options_kwargs since it's now a proper field
-    options_kwargs['output_folder'] = output_folder
-
-    # Remove any kwargs that aren't OcrOptions fields and store in extra_attrs
-    extra_attrs = {}
-    ocr_fields = set(OcrOptions.model_fields.keys())
-    # Legacy mode flags are handled by OcrOptions model validator
-    legacy_mode_flags = {'force_ocr', 'skip_text', 'redo_ocr'}
-    known_extra = {'progress_bar', 'plugins'}
-
-    for key in list(options_kwargs.keys()):
-        if key in ocr_fields or key in legacy_mode_flags or key in known_extra:
-            continue
-        extra_attrs[key] = options_kwargs.pop(key)
-
-    with _api_lock:
-        # Set up plugin infrastructure with proper initialization
-        plugin_manager = setup_plugin_infrastructure(
-            plugins=plugins, plugin_manager=plugin_manager
-        )
-
-        plugin_manager.add_options(parser=get_parser())
-
-        # Create OcrOptions directly
-        try:
-            options = OcrOptions(**options_kwargs)
-            # Add any extra attributes
-            if extra_attrs:
-                options.extra_attrs.update(extra_attrs)
-        except Exception as e:
-            raise TypeError(
-                f"Failed to create OcrOptions for hOCR pipeline: {e}"
-            ) from e
-
-        return run_hocr_pipeline(options=options, plugin_manager=plugin_manager)
+    pass
 
 
 def _hocr_to_ocr_pdf(  # noqa: D417
@@ -877,87 +614,7 @@ def _hocr_to_ocr_pdf(  # noqa: D417
         output_file: Output PDF file path.
         **kwargs: Keyword arguments.
     """
-    if plugins and plugin_manager:
-        raise ValueError("plugins= and plugin_manager are mutually exclusive")
-
-    if not plugins:
-        plugins = []
-    elif isinstance(plugins, str | Path):
-        plugins = [plugins]
-    else:
-        plugins = list(plugins)
-
-    # Prepare kwargs for direct OcrOptions construction
-    options_kwargs = kwargs.copy()
-
-    # Set output file and handle special work_folder case
-    options_kwargs['input_file'] = '/dev/null'  # Placeholder for hOCR to PDF pipeline
-    options_kwargs['output_file'] = output_file
-
-    # Add all the function parameters
-    for param_name, param_value in locals().items():
-        if (
-            param_name
-            not in {'work_folder', 'output_file', 'kwargs', 'plugin_manager', 'plugins'}
-            and param_value is not None
-        ):
-            options_kwargs[param_name] = param_value
-
-    # Handle plugins
-    if plugins:
-        options_kwargs['plugins'] = plugins
-
-    # Remove None values to let OcrOptions use its defaults
-    options_kwargs = {k: v for k, v in options_kwargs.items() if v is not None}
-
-    # Warn about deprecated jbig2 options and remove from kwargs
-    if jbig2_lossy:
-        warn(
-            "jbig2_lossy is deprecated and will be ignored. "
-            "Lossy JBIG2 has been removed due to character substitution risks."
-        )
-        options_kwargs.pop('jbig2_lossy', None)
-    if jbig2_page_group_size:
-        warn("jbig2_page_group_size is deprecated and will be ignored.")
-        options_kwargs.pop('jbig2_page_group_size', None)
-
-    # Add work_folder to options_kwargs since it's now a proper field
-    options_kwargs['work_folder'] = work_folder
-
-    # Remove any kwargs that aren't OcrOptions fields and store in extra_attrs
-    extra_attrs = {}
-    ocr_fields = set(OcrOptions.model_fields.keys())
-    # Legacy mode flags are handled by OcrOptions model validator
-    legacy_mode_flags = {'force_ocr', 'skip_text', 'redo_ocr'}
-    known_extra = {'progress_bar', 'plugins'}
-
-    for key in list(options_kwargs.keys()):
-        if key in ocr_fields or key in legacy_mode_flags or key in known_extra:
-            continue
-        extra_attrs[key] = options_kwargs.pop(key)
-
-    with _api_lock:
-        # Set up plugin infrastructure with proper initialization
-        plugin_manager = setup_plugin_infrastructure(
-            plugins=plugins, plugin_manager=plugin_manager
-        )
-
-        plugin_manager.add_options(parser=get_parser())
-
-        # Create OcrOptions directly
-        try:
-            options = OcrOptions(**options_kwargs)
-            # Add any extra attributes
-            if extra_attrs:
-                options.extra_attrs.update(extra_attrs)
-        except Exception as e:
-            raise TypeError(
-                f"Failed to create OcrOptions for hOCR to PDF pipeline: {e}"
-            ) from e
-
-        return run_hocr_to_ocr_pdf_pipeline(
-            options=options, plugin_manager=plugin_manager
-        )
+    pass
 
 
 __all__ = [

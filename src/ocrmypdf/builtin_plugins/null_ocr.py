@@ -41,7 +41,7 @@ class NullOcrEngine(OcrEngine):
     @staticmethod
     def creator_tag(options: OcrOptions) -> str:
         """Return creator tag for PDF metadata."""
-        return "OCRmyPDF (no OCR)"
+        pass
 
     def __str__(self) -> str:
         """Return human-readable engine name."""
@@ -55,17 +55,17 @@ class NullOcrEngine(OcrEngine):
     @staticmethod
     def get_orientation(input_file: Path, options: OcrOptions) -> OrientationConfidence:
         """Return neutral orientation (no rotation detected)."""
-        return OrientationConfidence(angle=0, confidence=0.0)
+        pass
 
     @staticmethod
     def get_deskew(input_file: Path, options: OcrOptions) -> float:
         """Return zero deskew angle."""
-        return 0.0
+        pass
 
     @staticmethod
     def supports_generate_ocr() -> bool:
         """Return True - this engine supports the generate_ocr() API."""
-        return True
+        pass
 
     @staticmethod
     def generate_ocr(
@@ -83,21 +83,7 @@ class NullOcrEngine(OcrEngine):
         Returns:
             A tuple of (empty OcrElement page, empty string).
         """
-        # Get image dimensions
-        with Image.open(input_file) as img:
-            width, height = img.size
-            dpi_info = img.info.get('dpi', (72, 72))
-            dpi = dpi_info[0] if isinstance(dpi_info, tuple) else dpi_info
-
-        # Create empty page element with correct dimensions
-        page = OcrElement(
-            ocr_class=OcrClass.PAGE,
-            bbox=BoundingBox(left=0, top=0, right=width, bottom=height),
-            dpi=float(dpi),
-            page_number=page_number,
-        )
-
-        return page, ""
+        pass
 
     @staticmethod
     def generate_hocr(
@@ -110,27 +96,7 @@ class NullOcrEngine(OcrEngine):
 
         Creates minimal valid hOCR output with no text content.
         """
-        # Get image dimensions for hOCR bbox
-        with Image.open(input_file) as img:
-            width, height = img.size
-
-        hocr_content = f'''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-    <title>OCRmyPDF - No OCR</title>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-    <meta name='ocr-system' content='OCRmyPDF null engine'/>
-</head>
-<body>
-    <div class='ocr_page' title='bbox 0 0 {width} {height}'>
-    </div>
-</body>
-</html>
-'''
-        output_hocr.write_text(hocr_content, encoding='utf-8')
-        output_text.write_text('', encoding='utf-8')
+        pass
 
     @staticmethod
     def generate_pdf(

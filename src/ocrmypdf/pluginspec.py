@@ -450,7 +450,7 @@ class OcrEngine(ABC):
     @staticmethod
     def get_deskew(input_file: Path, options: OcrOptions) -> float:
         """Returns the deskew angle of the image, in degrees."""
-        return 0.0
+        pass
 
     @staticmethod
     @abstractmethod
@@ -509,7 +509,7 @@ class OcrEngine(ABC):
             False by default. Engines implementing generate_ocr() should
             override this to return True.
         """
-        return False
+        pass
 
     @staticmethod
     def generate_ocr(

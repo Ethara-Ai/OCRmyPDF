@@ -121,12 +121,12 @@ class CoordinateTransform:
     @property
     def page_width_pt(self) -> float:
         """Page width in PDF points."""
-        return self.page_width_px * 72.0 / self.dpi
+        pass
 
     @property
     def page_height_pt(self) -> float:
         """Page height in PDF points."""
-        return self.page_height_px * 72.0 / self.dpi
+        pass
 
     def px_to_pt(self, value: float) -> float:
         """Convert pixels to PDF points."""
@@ -134,12 +134,7 @@ class CoordinateTransform:
 
     def bbox_to_pt(self, bbox) -> tuple[float, float, float, float]:
         """Convert BoundingBox from pixels to points."""
-        return (
-            self.px_to_pt(bbox.left),
-            self.px_to_pt(bbox.top),
-            self.px_to_pt(bbox.right),
-            self.px_to_pt(bbox.bottom),
-        )
+        pass
 
 
 class Fpdf2PdfRenderer:
@@ -863,14 +858,7 @@ class Fpdf2PdfRenderer:
         rotation_deg: float,
     ) -> None:
         """Draw a magenta line along the baseline."""
-        pdf.set_draw_color(255, 0, 255)  # Magenta
-        pdf.set_line_width(0.75)
-
-        if abs(rotation_deg) > 0.1:
-            with pdf.rotation(rotation_deg, x=x, y=y):
-                pdf.line(x, y, x + width, y)
-        else:
-            pdf.line(x, y, x + width, y)
+        pass
 
     def _render_debug_word_bbox(
         self,

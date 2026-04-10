@@ -75,181 +75,23 @@ def extract_image_filter(
     image: Stream, xref: Xref
 ) -> tuple[PdfImage, tuple[Name, Object]] | None:
     """Determine if an image is extractable."""
-    if image.Subtype != Name.Image:
-        return None
-    if not isinstance(image.Length, int) or image.Length < 100:
-        log.debug(f"xref {xref}: skipping image with small stream size")
-        return None
-    if (
-        not isinstance(image.Width, int)
-        or not isinstance(image.Height, int)
-        or image.Width < 8
-        or image.Height < 8
-    ):  # Issue 732
-        log.debug(f"xref {xref}: skipping image with unusually small dimensions")
-        return None
-
-    pim = PdfImage(image)
-
-    if len(pim.filter_decodeparms) > 1:
-        first_filtdp = pim.filter_decodeparms[0]
-        second_filtdp = pim.filter_decodeparms[1]
-        if (
-            len(pim.filter_decodeparms) == 2
-            and first_filtdp[0] == Name.FlateDecode
-            and first_filtdp[1] is not None
-            and first_filtdp[1].get(Name.Predictor, 1) == 1
-            and second_filtdp[0] == Name.DCTDecode
-            and not second_filtdp[1]
-        ):
-            log.debug(
-                f"xref {xref}: found image compressed as /FlateDecode /DCTDecode, "
-                "marked for JPEG optimization"
-            )
-            filtdp = pim.filter_decodeparms[1]
-        else:
-            log.debug(f"xref {xref}: skipping image with multiple compression filters")
-            return None
-    else:
-        filtdp = pim.filter_decodeparms[0]
-
-    if pim.bits_per_component > 8:
-        log.debug(f"xref {xref}: skipping wide gamut image")
-        return None  # Don't mess with wide gamut images
-
-    if filtdp[0] == Name.JPXDecode:
-        log.debug(f"xref {xref}: skipping JPEG2000 image")
-        return None  # Don't do JPEG2000
-
-    if filtdp[0] == Name.CCITTFaxDecode and filtdp[1].get('/K', 0) >= 0:
-        log.debug(f"xref {xref}: skipping CCITT Group 3 image")
-        return None  # pikepdf doesn't support Group 3 yet
-
-    if Name.Decode in image:
-        log.debug(f"xref {xref}: skipping image with Decode table")
-        return None  # Don't mess with custom Decode tables
-    if image.get(Name.SMask, Dictionary()).get(Name.Matte, None) is not None:
-        # https://github.com/ocrmypdf/OCRmyPDF/issues/1536
-        # Do not attempt to optimize images that have a SMask with a Matte.
-        # That means alpha channel pre-blending is used, and we're not prepared
-        # to deal with the complexities of that.
-        log.debug(f"xref {xref}: skipping image whose SMask has Matte")
-        return None
-
-    return pim, filtdp
+    pass
 
 
 def extract_image_jbig2(
     *, pdf: Pdf, root: Path, image: Stream, xref: Xref, options
 ) -> XrefExt | None:
     """Extract an image, saving it as a JBIG2 file."""
-    del options  # unused arg
-
-    result = extract_image_filter(image, xref)
-    if result is None:
-        return None
-    pim, filtdp = result
-
-    if (
-        pim.bits_per_component == 1
-        and filtdp[0] != Name.JBIG2Decode
-        and jbig2enc.available()
-    ):
-        # Save any colorspace associated with the image, so that we
-        # will export a pure 1-bit PNG with no palette or ICC profile.
-        # Showing the palette or ICC to jbig2enc will cause it to perform
-        # colorspace transform to 1bpp, which will conflict the palette or
-        # ICC if it exists.
-        colorspace = pim.obj.get(Name.ColorSpace, None)
-        if colorspace is not None or pim.image_mask:
-            try:
-                # Set to DeviceGray temporarily; we already in 1 bpc.
-                pim.obj.ColorSpace = Name.DeviceGray
-                imgname = root / f'{xref:08d}'
-                with imgname.open('wb') as f:
-                    ext = pim.extract_to(stream=f)
-                # Rename the file so it has .prejbig2.ext extension
-                # Making it unique avoids problems with Windows if the
-                # same image is extracted multiple times
-                imgname.rename(imgname.with_suffix(".prejbig2" + ext))
-            except NotImplementedError as e:
-                if '/Decode' in str(e):
-                    log.debug(
-                        f"xref {xref}: skipping image with unsupported Decode table"
-                    )
-                    return None
-                raise
-            except UnsupportedImageTypeError:
-                return None
-            finally:
-                # Restore image colorspace after temporarily setting it to DeviceGray
-                if colorspace is not None:
-                    pim.obj.ColorSpace = colorspace
-                else:
-                    del pim.obj.ColorSpace
-            return XrefExt(xref, ".prejbig2" + ext)
-    return None
+    pass
 
 
-def _should_optimize_jpeg(options, filtdp):
-    if options.optimize >= 2:
-        return True
-    # Ghostscript 10.6.0+ introduced some sort of JPEG encoding issue.
-    # To resolve this, re-optimize the JPEG anyway.
-    return options.optimize < 2 and ghostscript.version() >= Version('10.6.0')
 
 
 def extract_image_generic(
     *, pdf: Pdf, root: Path, image: Stream, xref: Xref, options
 ) -> XrefExt | None:
     """Generic image extraction."""
-    result = extract_image_filter(image, xref)
-    if result is None:
-        return None
-    pim, filtdp = result
-
-    # Don't try to PNG-optimize 1bpp images, since JBIG2 does it better.
-    if pim.bits_per_component == 1:
-        return None
-
-    if filtdp[0] == Name.DCTDecode and _should_optimize_jpeg(options, filtdp):
-        try:
-            imgname = root / f'{xref:08d}'
-            with imgname.open('wb') as f:
-                ext = pim.extract_to(stream=f)
-            imgname.rename(imgname.with_suffix(ext))
-        except (UnsupportedImageTypeError, HifiPrintImageNotTranscodableError):
-            return None
-        return XrefExt(xref, ext)
-    elif (
-        pim.indexed
-        and pim.colorspace in pim.SIMPLE_COLORSPACES
-        and options.optimize >= 3
-    ):
-        # Try to improve on indexed images - these are far from low hanging
-        # fruit in most cases
-        pim.as_pil_image().save(png_name(root, xref))
-        return XrefExt(xref, '.png')
-    elif not pim.indexed and pim.colorspace in pim.SIMPLE_COLORSPACES:
-        # An optimization opportunity here, not currently taken, is directly
-        # generating a PNG from compressed data
-        try:
-            pim.as_pil_image().save(png_name(root, xref))
-        except NotImplementedError:
-            log.warning("PDF contains an atypical image that cannot be optimized.")
-            return None
-        return XrefExt(xref, '.png')
-    elif (
-        not pim.indexed
-        and pim.colorspace == Name.ICCBased
-        and pim.bits_per_component == 1
-    ):
-        # We can losslessly optimize 1-bit images to CCITT or JBIG2 without
-        # paying any attention to the ICC profile
-        pim.as_pil_image().save(png_name(root, xref))
-        return XrefExt(xref, '.png')
-
-    return None
+    pass
 
 
 def _find_image_xrefs_container(
@@ -429,20 +271,6 @@ def convert_to_jbig2(
         im_obj.write(jbig2_im_data, filter=Name.JBIG2Decode, decode_parms=None)
 
 
-def _optimize_jpeg(
-    xref: Xref, in_jpg: Path, opt_jpg: Path, jpg_quality: int
-) -> tuple[Xref, Path | None]:
-    with Image.open(in_jpg) as im:
-        save_kwargs: dict[str, Any] = {'optimize': True}
-        if isinstance(jpg_quality, int) and 0 < jpg_quality <= 100:
-            save_kwargs['quality'] = jpg_quality
-        im.save(opt_jpg, **save_kwargs)
-
-    if opt_jpg.stat().st_size > in_jpg.stat().st_size:
-        log.debug(f"xref {xref}, jpeg, made larger - skip")
-        opt_jpg.unlink()
-        return xref, None
-    return xref, opt_jpg
 
 
 def transcode_jpegs(
@@ -456,13 +284,6 @@ def transcode_jpegs(
             opt_jpg = in_jpg.with_suffix('.opt.jpg')
             yield xref, in_jpg, opt_jpg, options.jpg_quality
 
-    def finish_jpeg(result: tuple[Xref, Path | None], pbar: ProgressBar):
-        xref, opt_jpg = result
-        if opt_jpg:
-            compdata = opt_jpg.read_bytes()  # JPEG can inserted into PDF as is
-            im_obj = pdf.get_object(xref, 0)
-            im_obj.write(compdata, filter=Name.DCTDecode)
-        pbar.update()
 
     executor(
         use_threads=True,  # Processes are significantly slower at this task
@@ -481,57 +302,11 @@ def transcode_jpegs(
 
 def _already_flate_encoded(image: Stream) -> bool:
     """Check if the image already has FlateDecode in its filter chain."""
-    filt = image.get(Name.Filter)
-    if filt is None:
-        return False
-    if isinstance(filt, Array):
-        return Name.FlateDecode in list(filt)
-    return filt == Name.FlateDecode
+    pass
 
 
-def _find_deflatable_jpeg(
-    *, pdf: Pdf, root: Path, image: Stream, xref: Xref, options
-) -> XrefExt | None:
-    result = extract_image_filter(image, xref)
-    if result is None:
-        return None
-    _pim, filtdp = result
-
-    # Skip if already FlateDecode compressed - would double-compress
-    if _already_flate_encoded(image):
-        return None
-
-    if (
-        filtdp[0] == Name.DCTDecode
-        and not filtdp[1]
-        and (
-            (
-                # Don't flate very large images because it will slow down PDF viewers
-                1 <= options.optimize <= 2
-                and image.get(Name.Width, 0) < FLATE_JPEG_THRESHOLD
-                and image.get(Name.Height, 0) < FLATE_JPEG_THRESHOLD
-            )
-            or options.optimize == 3
-        )
-    ):
-        return XrefExt(xref, '.memory')
-
-    return None
 
 
-def _deflate_jpeg(
-    pdf: Pdf, lock: threading.Lock, xref: Xref, complevel: int
-) -> tuple[Xref, bytes]:
-    with lock:
-        xobj = pdf.get_object(xref, 0)
-        try:
-            data = xobj.read_raw_bytes()
-        except PdfError:
-            return xref, b''
-    compdata = compress(data, complevel)
-    if len(compdata) >= len(data):
-        return xref, b''
-    return xref, compdata
 
 
 def deflate_jpegs(pdf: Pdf, root: Path, options, executor: Executor) -> None:
@@ -556,13 +331,6 @@ def deflate_jpegs(pdf: Pdf, root: Path, options, executor: Executor) -> None:
         for xref in jpegs:
             yield pdf, lock, xref, complevel
 
-    def finish(result: tuple[Xref, bytes], pbar: ProgressBar):
-        xref, compdata = result
-        if len(compdata) > 0:
-            with lock:
-                xobj = pdf.get_object(xref, 0)
-                xobj.write(compdata, filter=[Name.FlateDecode, Name.DCTDecode])
-        pbar.update()
 
     executor(
         use_threads=True,  # We're sharing the pdf directly, must use threads

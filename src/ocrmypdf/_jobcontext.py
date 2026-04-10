@@ -48,19 +48,15 @@ class PdfContext:
         The path will be in a temporary folder that is common for all processing
         of this particular PDF.
         """
-        return self.work_folder / name
+        pass
 
     def get_page_contexts(self) -> Iterator[PageContext]:
         """Get all ``PageContext`` for this PDF."""
-        npages = len(self.pdfinfo)
-        for n in range(npages):
-            yield PageContext(self, n)
+        pass
 
     def get_page_context_args(self) -> Iterator[tuple[PageContext]]:
         """Get all ``PageContext`` for this PDF packaged in tuple for args-splatting."""
-        npages = len(self.pdfinfo)
-        for n in range(npages):
-            yield (PageContext(self, n),)
+        pass
 
 
 class PageContext:
@@ -96,7 +92,7 @@ class PageContext:
         The path will be based in a common temporary folder and have a prefix based
         on the page number.
         """
-        return self.work_folder / f"{(self.pageno + 1):06d}_{name}"
+        pass
 
     def __getstate__(self):
         state = self.__dict__.copy()

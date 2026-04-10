@@ -139,71 +139,46 @@ class ImageInfo:
             if self._comp is None and self._enc in (Encoding.ccitt, Encoding.jbig2):
                 self._comp = FRIENDLY_COMP[Colorspace.gray]
 
-    def _init_icc(self, pim: PdfImage):
-        try:
-            icc = pim.icc
-        except UnsupportedImageTypeError as e:
-            logger.warning(
-                f"An image with a corrupt or unreadable ICC profile was found. "
-                f"Output PDF may not match the input PDF visually: {e}. {self}"
-            )
-            return None
-        # Check the ICC profile to determine actual colorspace
-        if icc is None or not hasattr(icc, 'profile'):
-            logger.warning(
-                f"An image with an ICC profile but no ICC profile data was found. "
-                f"The output PDF may not match the input PDF visually. {self}"
-            )
-            return None
-        try:
-            if icc.profile.xcolor_space == 'GRAY':
-                return 1
-            elif icc.profile.xcolor_space == 'CMYK':
-                return 4
-            else:
-                return 3
-        except AttributeError:
-            return None
 
     @property
     def name(self):
         """Name of the image as it appears in the PDF."""
-        return self._name
+        pass
 
     @property
     def type_(self):
         """Type of image, either 'image' or 'stencil'."""
-        return self._type
+        pass
 
     @property
     def width(self) -> int:
         """Width of the image in pixels."""
-        return self._width
+        pass
 
     @property
     def height(self) -> int:
         """Height of the image in pixels."""
-        return self._height
+        pass
 
     @property
     def bpc(self):
         """Bits per component."""
-        return self._bpc
+        pass
 
     @property
     def color(self):
         """Colorspace of the image."""
-        return self._color if self._color is not None else '?'
+        pass
 
     @property
     def comp(self):
         """Number of components/channels in the image."""
-        return self._comp if self._comp is not None else '?'
+        pass
 
     @property
     def enc(self):
         """Encoding of the image."""
-        return self._enc if self._enc is not None else 'image'
+        pass
 
     @property
     def renderable(self) -> bool:
@@ -215,12 +190,7 @@ class ImageInfo:
         Stencil masks are not also not renderable, since they are not
         drawn, but rather they control how rendering happens.
         """
-        return (
-            self.dpi.is_finite
-            and self.width >= 0
-            and self.height >= 0
-            and self.type_ != 'stencil'
-        )
+        pass
 
     @property
     def dpi(self) -> Resolution:
@@ -228,14 +198,12 @@ class ImageInfo:
 
         Calculated based on where and how the image is drawn in the PDF.
         """
-        return _get_dpi(self._shorthand, (self._width, self._height))
+        pass
 
     @property
     def printed_area(self) -> float:
         """Physical area of the image in square inches."""
-        if not self.renderable:
-            return 0.0
-        return float((self.width / self.dpi.x) * (self.height / self.dpi.y))
+        pass
 
     def __repr__(self):
         """Return a string representation of the image."""
@@ -247,10 +215,7 @@ class ImageInfo:
 
 def _find_inline_images(contentsinfo: ContentsInfo) -> Iterator[ImageInfo]:
     """Find inline images in the contentstream."""
-    for n, inline in enumerate(contentsinfo.inline_images):
-        yield ImageInfo(
-            name=f'inline-{n:02d}', shorthand=inline.shorthand, inline=inline.iimage
-        )
+    pass
 
 
 def _image_xobjects(container) -> Iterator[tuple[Object, str]]:
@@ -265,17 +230,7 @@ def _image_xobjects(container) -> Iterator[tuple[Object, str]]:
     since the object does not know its own name.
 
     """
-    if Name.Resources not in container:
-        return
-    resources = container[Name.Resources]
-    if Name.XObject not in resources:
-        return
-    for key, candidate in resources[Name.XObject].items():
-        if candidate is None or Name.Subtype not in candidate:
-            continue
-        if candidate[Name.Subtype] == Name.Image:
-            pdfimage = candidate
-            yield (pdfimage, key)
+    pass
 
 
 def _find_regular_images(
@@ -288,19 +243,7 @@ def _find_regular_images(
 
     Generates images with their DPI at time of drawing.
     """
-    for pdfimage, xobj in _image_xobjects(container):
-        if xobj not in contentsinfo.name_index:
-            continue
-        for draw in contentsinfo.name_index[xobj]:
-            if draw.stack_depth == 0 and _is_unit_square(draw.shorthand):
-                # At least one PDF in the wild (and test suite) draws an image
-                # when the graphics stack depth is 0, meaning that the image
-                # gets drawn into a square of 1x1 PDF units (or 1/72",
-                # or 0.35 mm).  The equivalent DPI will be >100,000.  Exclude
-                # these from our DPI calculation for the page.
-                continue
-
-            yield ImageInfo(name=draw.name, pdfimage=pdfimage, shorthand=draw.shorthand)
+    pass
 
 
 def _find_form_xobject_images(pdf: Pdf, container: Object, contentsinfo: ContentsInfo):
@@ -309,30 +252,7 @@ def _find_form_xobject_images(pdf: Pdf, container: Object, contentsinfo: Content
     The container may be a page, or a parent Form XObject.
 
     """
-    if Name.Resources not in container:
-        return
-    resources = container[Name.Resources]
-    if Name.XObject not in resources:
-        return
-    xobjs = resources[Name.XObject].as_dict()
-    for xobj in xobjs:
-        candidate = xobjs[xobj]
-        if candidate is None or candidate.get(Name.Subtype) != Name.Form:
-            continue
-
-        form_xobject = candidate
-        for settings in contentsinfo.xobject_settings:
-            if settings.name != xobj:
-                continue
-
-            # Find images once for each time this Form XObject is drawn.
-            # This could be optimized to cache the multiple drawing events
-            # but in practice both Form XObjects and multiple drawing of the
-            # same object are both very rare.
-            ctm_shorthand = settings.shorthand
-            yield from _process_content_streams(
-                pdf=pdf, container=form_xobject, shorthand=ctm_shorthand
-            )
+    pass
 
 
 def _process_content_streams(
@@ -355,34 +275,4 @@ def _process_content_streams(
     downsampling.
 
     """
-    if container.get(Name.Type) == Name.Page and Name.Contents in container:
-        initial_shorthand = shorthand or UNIT_SQUARE
-    elif (
-        container.get(Name.Type) == Name.XObject
-        and container[Name.Subtype] == Name.Form
-    ):
-        # Set the CTM to the state it was when the "Do" operator was
-        # encountered that is drawing this instance of the Form XObject
-        ctm = Matrix(shorthand) if shorthand else Matrix()
-
-        # A Form XObject may provide its own matrix to map form space into
-        # user space. Get this if one exists
-        form_shorthand = container.get(Name.Matrix, Matrix())
-        form_matrix = Matrix(form_shorthand)
-
-        # Concatenate form matrix with CTM to ensure CTM is correct for
-        # drawing this instance of the XObject
-        ctm = form_matrix @ ctm
-        initial_shorthand = ctm.shorthand
-    else:
-        return
-
-    contentsinfo = _interpret_contents(container, initial_shorthand)
-
-    if contentsinfo.found_vector:
-        yield VectorMarker()
-    if contentsinfo.found_text:
-        yield TextMarker()
-    yield from _find_inline_images(contentsinfo)
-    yield from _find_regular_images(container, contentsinfo)
-    yield from _find_form_xobject_images(pdf, container, contentsinfo)
+    pass

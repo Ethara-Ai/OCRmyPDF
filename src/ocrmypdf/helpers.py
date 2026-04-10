@@ -61,21 +61,18 @@ class Resolution(Generic[T]):
 
     def to_int(self) -> Resolution[int]:
         """Round to nearest integer."""
-        return Resolution(int(round(self.x)), int(round(self.y)))
+        pass
 
-    @classmethod
-    def _isclose(cls, a, b):
-        return isclose(a, b, rel_tol=cls.CONVERSION_ERROR)
 
     @property
     def is_square(self) -> bool:
         """True if the resolution is square (x == y)."""
-        return self._isclose(self.x, self.y)
+        pass
 
     @property
     def is_finite(self) -> bool:
         """True if both x and y are finite numbers."""
-        return isfinite(self.x) and isfinite(self.y)
+        pass
 
     def to_scalar(self) -> float:
         """Return the harmonic mean of x and y as a 1D approximation.
@@ -84,35 +81,29 @@ class Resolution(Generic[T]):
         can be approximated as a single number. When not square, the harmonic mean
         is used to approximate the 2D resolution as a single number.
         """
-        return harmonic_mean([float(self.x), float(self.y)])
+        pass
 
     def _take_minmax(
         self, vals: Iterable[Any], yvals: Iterable[Any] | None, cmp: Callable
     ) -> Resolution:
         """Return a new Resolution object with the maximum resolution of inputs."""
-        if yvals is not None:
-            return Resolution(cmp(self.x, *vals), cmp(self.y, *yvals))
-        cmp_x, cmp_y = self.x, self.y
-        for x, y in vals:
-            cmp_x = cmp(x, cmp_x)
-            cmp_y = cmp(y, cmp_y)
-        return Resolution(cmp_x, cmp_y)
+        pass
 
     def take_max(
         self, vals: Iterable[Any], yvals: Iterable[Any] | None = None
     ) -> Resolution:
         """Return a new Resolution object with the maximum resolution of inputs."""
-        return self._take_minmax(vals, yvals, max)
+        pass
 
     def take_min(
         self, vals: Iterable[Any], yvals: Iterable[Any] | None = None
     ) -> Resolution:
         """Return a new Resolution object with the minimum resolution of inputs."""
-        return self._take_minmax(vals, yvals, min)
+        pass
 
     def flip_axis(self) -> Resolution[T]:
         """Return a new Resolution object with x and y swapped."""
-        return Resolution(self.y, self.x)
+        pass
 
     def __getitem__(self, idx: int | slice) -> T:
         """Support [0] and [1] indexing."""
@@ -181,37 +172,27 @@ def samefile(file1: os.PathLike, file2: os.PathLike) -> bool:
 
     Attempts to account for different relative paths to the same file.
     """
-    if os.name == 'nt':
-        return file1 == file2
-    else:
-        return os.path.samefile(file1, file2)
+    pass
 
 
 def is_iterable_notstr(thing: Any) -> bool:
     """Is this is an iterable type, other than a string?"""
-    return isinstance(thing, Iterable) and not isinstance(thing, str)
+    pass
 
 
 def monotonic(seq: Sequence) -> bool:
     """Does this sequence increase monotonically?"""
-    return all(b > a for a, b in zip(seq, seq[1:], strict=False))
+    pass
 
 
 def page_number(input_file: os.PathLike) -> int:
     """Get one-based page number implied by filename (000002.pdf -> 2)."""
-    return int(os.path.basename(os.fspath(input_file))[0:6])
+    pass
 
 
 def available_cpu_count() -> int:
     """Returns number of CPUs in the system."""
-    try:
-        return multiprocessing.cpu_count()
-    except NotImplementedError:
-        pass
-    warnings.warn(
-        "Could not get CPU count. Assuming one (1) CPU. Use -j N to set manually."
-    )
-    return 1
+    pass
 
 
 def is_file_writable(test_file: os.PathLike) -> bool:
@@ -221,32 +202,7 @@ def is_file_writable(test_file: os.PathLike) -> bool:
     can replace it atomically. Before doing the OCR work, make sure
     the location is writable.
     """
-    try:
-        p = Path(test_file)
-        if p.is_symlink():
-            p = p.resolve(strict=False)
-
-        # p.is_file() throws an exception in some cases
-        if p.exists() and (p.is_file() or p.samefile(os.devnull)):
-            return os.access(
-                os.fspath(p),
-                os.W_OK,
-                effective_ids=(os.access in os.supports_effective_ids),
-            )
-
-        try:
-            fp = p.open('wb')
-        except OSError:
-            return False
-        else:
-            fp.close()
-            with suppress(OSError):
-                p.unlink()
-        return True
-    except (OSError, RuntimeError) as e:
-        log.debug(e)
-        log.error(str(e))
-        return False
+    pass
 
 
 def check_pdf(input_file: Path) -> bool:
@@ -255,49 +211,12 @@ def check_pdf(input_file: Path) -> bool:
     Checks for proper formatting and proper linearization. Uses pikepdf (which in
     turn, uses QPDF) to perform the checks.
     """
-    try:
-        pdf = pikepdf.open(input_file)
-    except pikepdf.PdfError as e:
-        log.error(e)
-        return False
-    else:
-        with pdf:
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore', message=r'pikepdf.*JBIG2.*')
-                messages = pdf.check_pdf_syntax()
-            success = True
-            for msg in messages:
-                if 'error' in msg.lower():
-                    log.error(msg)
-                    success = False
-                elif (
-                    "/DecodeParms: operation for dictionary attempted on object "
-                    "of type null" in msg
-                ):
-                    pass  # Ignore/spurious warning
-                else:
-                    log.warning(msg)
-                    success = False
-
-            sio = StringIO()
-            linearize_msgs = ''
-            try:
-                # If linearization is missing entirely, we do not complain. We do
-                # complain if linearization is present but incorrect.
-                pdf.check_linearization(sio)
-            except (RuntimeError, pikepdf.ForeignObjectError):
-                pass
-            else:
-                linearize_msgs = sio.getvalue()
-                if linearize_msgs:
-                    log.warning(linearize_msgs)
-
-            return bool(success and not linearize_msgs)
+    pass
 
 
 def clamp(n: T, smallest: T, largest: T) -> T:
     """Clamps the value of ``n`` to between ``smallest`` and ``largest``."""
-    return max(smallest, min(n, largest))
+    pass
 
 
 def remove_all_log_handlers(logger: logging.Logger) -> None:
@@ -308,25 +227,12 @@ def remove_all_log_handlers(logger: logging.Logger) -> None:
     process so that the child process can set up a single queue handler to
     forward log messages to the parent process.
     """
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-        handler.close()  # To ensure handlers with opened resources are released
+    pass
 
 
 def pikepdf_enable_mmap() -> None:
     """Enable pikepdf memory mapping."""
-    try:
-        pikepdf._core.set_access_default_mmap(True)
-        log.debug(
-            "pikepdf mmap "
-            + (
-                'enabled'
-                if pikepdf._core.get_access_default_mmap()  # type: ignore[attr-defined]
-                else 'disabled'
-            )
-        )
-    except AttributeError:
-        log.debug("pikepdf mmap not available")
+    pass
 
 
 def running_in_docker() -> bool:
@@ -336,8 +242,4 @@ def running_in_docker() -> bool:
 
 def running_in_snap() -> bool:
     """Returns True if we seem to be running in a Snap container."""
-    try:
-        cgroup_text = Path('/proc/self/cgroup').read_text()
-        return 'snap.ocrmypdf' in cgroup_text
-    except FileNotFoundError:
-        return False
+    pass

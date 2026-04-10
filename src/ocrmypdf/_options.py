@@ -67,42 +67,7 @@ class TaggedPdfMode(StrEnum):
 
 def _pages_from_ranges(ranges: str) -> set[int]:
     """Convert page range string to set of page numbers."""
-    pages: list[int] = []
-    page_groups = ranges.replace(' ', '').split(',')
-    for group in page_groups:
-        if not group:
-            continue
-        try:
-            start, end = group.split('-')
-        except ValueError:
-            pages.append(int(group) - 1)
-        else:
-            try:
-                new_pages = list(range(int(start) - 1, int(end)))
-                if not new_pages:
-                    raise BadArgsError(
-                        f"invalid page subrange '{start}-{end}'"
-                    ) from None
-                pages.extend(new_pages)
-            except ValueError:
-                raise BadArgsError(f"invalid page subrange '{group}'") from None
-
-    if not pages:
-        raise BadArgsError(
-            f"The string of page ranges '{ranges}' did not contain any recognizable "
-            f"page ranges."
-        )
-
-    if not monotonic(pages):
-        log.warning(
-            "List of pages to process contains duplicate pages, or pages that are "
-            "out of order"
-        )
-    if any(page < 0 for page in pages):
-        raise BadArgsError("pages refers to a page number less than 1")
-
-    log.debug("OCRing only these pages: %s", pages)
-    return set(pages)
+    pass
 
 
 class OcrOptions(BaseModel):
@@ -128,17 +93,17 @@ class OcrOptions(BaseModel):
     @property
     def force_ocr(self) -> bool:
         """Backward compatibility alias for mode == ProcessingMode.force."""
-        return self.mode == ProcessingMode.force
+        pass
 
     @property
     def skip_text(self) -> bool:
         """Backward compatibility alias for mode == ProcessingMode.skip."""
-        return self.mode == ProcessingMode.skip
+        pass
 
     @property
     def redo_ocr(self) -> bool:
         """Backward compatibility alias for mode == ProcessingMode.redo."""
-        return self.mode == ProcessingMode.redo
+        pass
 
     # Job control
     jobs: int | None = None
@@ -181,12 +146,12 @@ class OcrOptions(BaseModel):
     @property
     def jpeg_quality(self):
         """Compatibility alias for jpg_quality."""
-        return self.jpg_quality
+        pass
 
     @jpeg_quality.setter
     def jpeg_quality(self, value):
         """Compatibility alias for jpg_quality."""
-        self.jpg_quality = value
+        pass
 
     # Output behavior
     no_overwrite: bool = False
@@ -231,301 +196,109 @@ class OcrOptions(BaseModel):
     @classmethod
     def validate_languages(cls, v):
         """Ensure languages list is not empty."""
-        if not v:
-            return [DEFAULT_LANGUAGE]
-        return v
+        pass
 
     @field_validator('output_type')
     @classmethod
     def validate_output_type(cls, v):
         """Validate output type is one of the allowed values."""
-        valid_types = {'auto', 'pdfa', 'pdf', 'pdfa-1', 'pdfa-2', 'pdfa-3', 'none'}
-        if v not in valid_types:
-            raise ValueError(f"output_type must be one of {valid_types}")
-        return v
+        pass
 
     @field_validator('pdf_renderer')
     @classmethod
     def validate_pdf_renderer(cls, v):
         """Validate PDF renderer is one of the allowed values."""
-        valid_renderers = {'auto', 'sandwich', 'fpdf2'}
-        # Legacy hocr/hocrdebug are accepted but redirected to fpdf2
-        legacy_renderers = {'hocr', 'hocrdebug'}
-        all_accepted = valid_renderers | legacy_renderers
-        if v not in all_accepted:
-            raise ValueError(f"pdf_renderer must be one of {all_accepted}")
-        return v
+        pass
 
     @field_validator('rasterizer')
     @classmethod
     def validate_rasterizer(cls, v):
         """Validate rasterizer is one of the allowed values."""
-        valid_rasterizers = {'auto', 'ghostscript', 'pypdfium'}
-        if v not in valid_rasterizers:
-            raise ValueError(f"rasterizer must be one of {valid_rasterizers}")
-        return v
+        pass
 
     @field_validator('clean_final')
     @classmethod
     def validate_clean_final(cls, v, info):
         """If clean_final is True, also set clean to True."""
-        if v and hasattr(info, 'data') and 'clean' in info.data:
-            info.data['clean'] = True
-        return v
+        pass
 
     @field_validator('jobs')
     @classmethod
     def validate_jobs(cls, v):
         """Validate jobs is a reasonable number."""
-        if v is not None and (v < 0 or v > 256):
-            raise ValueError("jobs must be between 0 and 256")
-        return v
+        pass
 
     @field_validator('verbose')
     @classmethod
     def validate_verbose(cls, v):
         """Validate verbose level."""
-        if v < 0 or v > 2:
-            raise ValueError("verbose must be between 0 and 2")
-        return v
+        pass
 
     @field_validator('oversample')
     @classmethod
     def validate_oversample(cls, v):
         """Validate oversample DPI."""
-        if v < 0 or v > 5000:
-            raise ValueError("oversample must be between 0 and 5000")
-        return v
+        pass
 
     @field_validator('max_image_mpixels')
     @classmethod
     def validate_max_image_mpixels(cls, v):
         """Validate max image megapixels."""
-        if v < 0:
-            raise ValueError("max_image_mpixels must be non-negative")
-        return v
+        pass
 
     @field_validator('rotate_pages_threshold')
     @classmethod
     def validate_rotate_pages_threshold(cls, v):
         """Validate rotate pages threshold."""
-        if v < 0 or v > 1000:
-            raise ValueError("rotate_pages_threshold must be between 0 and 1000")
-        return v
+        pass
 
     @field_validator('title', 'author', 'keywords', 'subject')
     @classmethod
     def validate_metadata_unicode(cls, v):
         """Validate metadata strings don't contain unsupported Unicode characters."""
-        if v is None:
-            return v
-
-        for char in v:
-            if unicodedata.category(char) == 'Co' or ord(char) >= 0x10000:
-                hexchar = hex(ord(char))[2:].upper()
-                raise ValueError(
-                    f"Metadata string contains unsupported Unicode character: "
-                    f"{char} (U+{hexchar})"
-                )
-        return v
+        pass
 
     @field_validator('pages')
     @classmethod
     def validate_pages_format(cls, v):
         """Convert page ranges string to set of page numbers."""
-        if v is None:
-            return v
-        if isinstance(v, set):
-            return v  # Already processed
-
-        # Convert string ranges to set of page numbers
-        return _pages_from_ranges(v)
+        pass
 
     @field_validator('unpaper_args', mode='before')
     @classmethod
     def validate_unpaper_args(cls, v):
         """Normalize unpaper_args from string to list and validate security."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            v = shlex.split(v)
-        if isinstance(v, list):
-            if any(('/' in arg or arg == '.' or arg == '..') for arg in v):
-                raise ValueError('No filenames allowed in --unpaper-args')
-            return v
-        raise ValueError(f'unpaper_args must be a string or list, got {type(v)}')
+        pass
 
     @model_validator(mode='before')
     @classmethod
     def handle_special_cases(cls, data):
         """Handle special cases for API compatibility and legacy options."""
-        if isinstance(data, dict):
-            # For hOCR API, output_file might not be present
-            if 'output_folder' in data and 'output_file' not in data:
-                data['output_file'] = '/dev/null'  # Placeholder
-
-            # Convert legacy boolean options (force_ocr, skip_text, redo_ocr) to mode
-            force = data.pop('force_ocr', None)
-            skip = data.pop('skip_text', None)
-            redo = data.pop('redo_ocr', None)
-
-            # Count how many legacy options are set to True
-            legacy_set = [
-                (force, ProcessingMode.force),
-                (skip, ProcessingMode.skip),
-                (redo, ProcessingMode.redo),
-            ]
-            legacy_true = [(val, mode) for val, mode in legacy_set if val]
-            legacy_count = len(legacy_true)
-
-            # Get current mode value (may be string or enum)
-            current_mode = data.get('mode', ProcessingMode.default)
-            if isinstance(current_mode, str):
-                current_mode = ProcessingMode(current_mode)
-            mode_is_set = current_mode != ProcessingMode.default
-
-            if legacy_count > 1:
-                raise ValueError(
-                    "Choose only one of --force-ocr, --skip-text, --redo-ocr."
-                )
-
-            if legacy_count == 1:
-                expected_mode = legacy_true[0][1]
-                if mode_is_set and current_mode != expected_mode:
-                    legacy_flag = f"--{expected_mode.value.replace('_', '-')}-ocr"
-                    raise ValueError(
-                        f"Conflicting options: --mode {current_mode.value} "
-                        f"cannot be used with {legacy_flag} or similar legacy flag."
-                    )
-                # Set mode from legacy option
-                data['mode'] = expected_mode
-
-        return data
+        pass
 
     @model_validator(mode='after')
     def validate_redo_ocr_options(self):
         """Validate options compatible with redo mode."""
-        if self.mode == ProcessingMode.redo and (
-            self.deskew or self.clean_final or self.remove_background
-        ):
-            raise ValueError(
-                "--redo-ocr (or --mode redo) is not currently compatible with "
-                "--deskew, --clean-final, and --remove-background"
-            )
-        return self
+        pass
 
     @model_validator(mode='after')
     def validate_output_type_compatibility(self):
         """Validate output type is compatible with output file."""
-        if self.output_type == 'none' and str(self.output_file) not in (
-            os.devnull,
-            '-',
-        ):
-            raise ValueError(
-                "Since you specified `--output-type none`, the output file "
-                f"{self.output_file} cannot be produced. Set the output file to "
-                f"`-` to suppress this message."
-            )
-        return self
+        pass
 
     @property
     def lossless_reconstruction(self):
         """Determine lossless_reconstruction based on other options."""
-        lossless = not any(
-            [
-                self.deskew,
-                self.clean_final,
-                self.mode == ProcessingMode.force,
-                self.remove_background,
-            ]
-        )
-        return lossless
+        pass
 
     def model_dump_json_safe(self) -> str:
         """Serialize to JSON with special handling for non-serializable types."""
-        # Create a copy of the model data for serialization
-        data = self.model_dump()
-
-        # Handle special types that don't serialize to JSON directly
-        def _serialize_value(value):
-            if isinstance(value, Path):
-                return {'__type__': 'Path', 'value': str(value)}
-            elif (
-                isinstance(value, BinaryIO | IOBase)
-                or hasattr(value, 'read')
-                or hasattr(value, 'write')
-            ):
-                # Stream object - replace with placeholder
-                return {'__type__': 'Stream', 'value': 'stream'}
-            elif hasattr(value, '__class__') and 'Iterator' in value.__class__.__name__:
-                # Handle Pydantic serialization iterators
-                return {'__type__': 'Stream', 'value': 'stream'}
-            elif isinstance(value, property):
-                # Handle property objects that shouldn't be serialized
-                return None
-            elif isinstance(value, list | tuple):
-                return [_serialize_value(item) for item in value]
-            elif isinstance(value, dict):
-                return {k: _serialize_value(v) for k, v in value.items()}
-            else:
-                return value
-
-        # Process all fields
-        serializable_data = {}
-        for key, value in data.items():
-            serialized_value = _serialize_value(value)
-            if serialized_value is not None:  # Skip None values from properties
-                serializable_data[key] = serialized_value
-
-        # Add extra_attrs, excluding plugin cache entries (they'll be recreated lazily)
-        if self.extra_attrs:
-            filtered_extra = {
-                k: v
-                for k, v in self.extra_attrs.items()
-                if not k.startswith('_plugin_cache_')
-            }
-            if filtered_extra:
-                serializable_data['_extra_attrs'] = _serialize_value(filtered_extra)
-
-        return json.dumps(serializable_data)
+        pass
 
     @classmethod
     def model_validate_json_safe(cls, json_str: str) -> OcrOptions:
         """Reconstruct from JSON with special handling for non-serializable types."""
-        data = json.loads(json_str)
-
-        # Handle special types during deserialization
-        def _deserialize_value(value):
-            if isinstance(value, dict) and '__type__' in value:
-                if value['__type__'] == 'Path':
-                    return Path(value['value'])
-                elif value['__type__'] == 'Stream':
-                    # For streams, we'll use a placeholder string
-                    return value['value']
-                else:
-                    return value['value']
-            elif isinstance(value, list):
-                return [_deserialize_value(item) for item in value]
-            elif isinstance(value, dict):
-                return {k: _deserialize_value(v) for k, v in value.items()}
-            else:
-                return value
-
-        # Process all fields
-        deserialized_data = {}
-        extra_attrs = {}
-
-        for key, value in data.items():
-            if key == '_extra_attrs':
-                extra_attrs = _deserialize_value(value)
-            else:
-                deserialized_data[key] = _deserialize_value(value)
-
-        # Create instance
-        instance = cls(**deserialized_data)
-        instance.extra_attrs = extra_attrs
-
-        return instance
+        pass
 
     model_config = ConfigDict(
         extra="forbid",  # Force use of extra_attrs for unknown fields
@@ -554,57 +327,7 @@ class OcrOptions(BaseModel):
         Returns:
             An instance of the plugin's option model, or None if not registered
         """
-        # Use extra_attrs to cache plugin option instances
-        cache_key = f'_plugin_cache_{namespace}'
-        if cache_key in self.extra_attrs:
-            return self.extra_attrs[cache_key]
-
-        if namespace not in _plugin_option_models:
-            raise AttributeError(
-                f"Plugin namespace '{namespace}' is not registered. "
-                f"Ensure setup_plugin_infrastructure() was called."
-            )
-
-        model_class = _plugin_option_models[namespace]
-
-        def _convert_value(value):
-            """Convert value to be compatible with plugin model fields."""
-            if isinstance(value, os.PathLike):
-                return os.fspath(value)
-            return value
-
-        # Build kwargs from flat fields
-        kwargs = {}
-        for field_name in model_class.model_fields:
-            # Try namespace_field pattern first (e.g., tesseract_timeout)
-            flat_name = f"{namespace}_{field_name}"
-            if flat_name in OcrOptions.model_fields:
-                value = getattr(self, flat_name)
-                if value is not None:
-                    kwargs[field_name] = _convert_value(value)
-            # Also check direct field name (for fields like jbig2_lossy)
-            elif field_name in OcrOptions.model_fields:
-                value = getattr(self, field_name)
-                if value is not None:
-                    kwargs[field_name] = _convert_value(value)
-            # Check for special mappings
-            elif namespace == 'optimize' and field_name == 'level':
-                # 'optimize' field maps to 'level' in OptimizeOptions
-                if 'optimize' in OcrOptions.model_fields:
-                    value = self.optimize
-                    if value is not None:
-                        kwargs[field_name] = _convert_value(value)
-            elif namespace == 'optimize' and field_name == 'jpeg_quality':
-                # jpg_quality maps to jpeg_quality
-                if 'jpg_quality' in OcrOptions.model_fields:
-                    value = self.jpg_quality
-                    if value is not None:
-                        kwargs[field_name] = _convert_value(value)
-
-        # Create and cache the plugin options instance
-        instance = model_class(**kwargs)
-        self.extra_attrs[cache_key] = instance
-        return instance
+        pass
 
     def __getattr__(self, name: str) -> Any:
         """Support dynamic access to plugin option namespaces.

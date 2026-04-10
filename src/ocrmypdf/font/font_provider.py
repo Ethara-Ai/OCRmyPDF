@@ -79,33 +79,7 @@ class BuiltinFontProvider:
 
     def _load_fonts(self) -> None:
         """Load available fonts, logging warnings for missing ones."""
-        for font_name, font_file in self.FONT_FILES.items():
-            font_path = self.font_dir / font_file
-            if not font_path.exists():
-                if font_name == 'Occulta':
-                    raise FileNotFoundError(
-                        f"Required fallback font not found: {font_path}"
-                    )
-                log.warning(
-                    "Font %s not found at %s - OCR output quality for some "
-                    "scripts may be affected",
-                    font_name,
-                    font_path,
-                )
-                continue
-
-            try:
-                self._fonts[font_name] = FontManager(font_path)
-            except Exception as e:
-                if font_name == 'Occulta':
-                    raise ValueError(
-                        f"Failed to load required fallback font {font_file}: {e}"
-                    ) from e
-                log.warning(
-                    "Failed to load font %s: %s - OCR output quality may be affected",
-                    font_name,
-                    e,
-                )
+        pass
 
     def get_font(self, font_name: str) -> FontManager | None:
         """Get a FontManager for the named font."""
@@ -113,7 +87,7 @@ class BuiltinFontProvider:
 
     def get_available_fonts(self) -> list[str]:
         """Get list of available font names."""
-        return list(self._fonts.keys())
+        pass
 
     def get_fallback_font(self) -> FontManager:
         """Get the glyphless fallback font."""
@@ -161,14 +135,7 @@ class ChainedFontProvider:
         Returns:
             Combined list of font names (deduplicated, order preserved)
         """
-        seen: set[str] = set()
-        result: list[str] = []
-        for provider in self.providers:
-            for name in provider.get_available_fonts():
-                if name not in seen:
-                    seen.add(name)
-                    result.append(name)
-        return result
+        pass
 
     def get_fallback_font(self) -> FontManager:
         """Get the glyphless fallback font.

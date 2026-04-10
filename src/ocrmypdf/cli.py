@@ -28,13 +28,6 @@ def numeric(basetype: Callable[[Any], T], min_: T | None = None, max_: T | None 
     min_ = basetype(min_) if min_ is not None else None
     max_ = basetype(max_) if max_ is not None else None
 
-    def _numeric(s: str) -> T:
-        value = basetype(s)
-        if (min_ is not None and value < min_) or (max_ is not None and value > max_):
-            raise argparse.ArgumentTypeError(
-                f"{s!r} not in valid range {(min_, max_)!r}"
-            )
-        return value
 
     _numeric.__name__ = basetype.__name__
     return _numeric
@@ -42,16 +35,7 @@ def numeric(basetype: Callable[[Any], T], min_: T | None = None, max_: T | None 
 
 def str_to_int(mapping: Mapping[str, int]):
     """Accept text on command line and convert to integer."""
-
-    def _str_to_int(s: str) -> int:
-        try:
-            return mapping[s]
-        except KeyError:
-            raise argparse.ArgumentTypeError(
-                f"{s!r} must be one of: {', '.join(mapping.keys())}"
-            ) from None
-
-    return _str_to_int
+    pass
 
 
 class LanguageSetAction(argparse.Action):

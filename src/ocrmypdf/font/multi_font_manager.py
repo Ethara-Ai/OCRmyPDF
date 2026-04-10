@@ -168,7 +168,7 @@ class MultiFontManager:
     @property
     def fonts(self) -> dict[str, FontManager]:
         """Get all loaded fonts (backward compatibility)."""
-        return self.get_all_fonts()
+        pass
 
     def _try_font(
         self, font_name: str, word_text: str, cache_key: tuple[str, str | None]
@@ -303,7 +303,7 @@ class MultiFontManager:
         Returns:
             True if font is available
         """
-        return self.font_provider.get_font(font_name) is not None
+        pass
 
     def has_all_glyphs(self, font_name: str, text: str) -> bool:
         """Check if a named font has glyphs for all characters in text.
@@ -315,10 +315,7 @@ class MultiFontManager:
         Returns:
             True if font has real glyphs for all characters (not .notdef)
         """
-        font = self.font_provider.get_font(font_name)
-        if font is None:
-            return False
-        return self._has_all_glyphs(font, text)
+        pass
 
     def get_all_fonts(self) -> dict[str, FontManager]:
         """Get all loaded font managers.
@@ -326,9 +323,4 @@ class MultiFontManager:
         Returns:
             Dictionary mapping font names to FontManager instances
         """
-        result = {}
-        for name in self.font_provider.get_available_fonts():
-            font = self.font_provider.get_font(name)
-            if font is not None:
-                result[name] = font
-        return result
+        pass

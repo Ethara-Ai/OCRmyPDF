@@ -35,18 +35,4 @@ def quantize(input_file: Path, output_file: Path, quality_min: int, quality_max:
         quality_min: Minimum quality to use
         quality_max: Maximum quality to use
     """
-    with open(input_file, 'rb') as input_stream:
-        args = [
-            'pngquant',
-            '--force',
-            '--skip-if-larger',
-            '--quality',
-            f'{quality_min}-{quality_max}',
-            '--',  # pngquant: stop processing arguments
-            '-',  # pngquant: stream input and output
-        ]
-        result = run(args, stdin=input_stream, stdout=PIPE, stderr=PIPE, check=False)
-
-    if result.returncode == 0:
-        # input_file could be the same as output_file, so we defer the write
-        output_file.write_bytes(result.stdout)
+    pass

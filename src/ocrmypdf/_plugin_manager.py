@@ -62,7 +62,7 @@ class OcrmypdfPluginManager:
         This is useful for plugins that need to call methods like set_blocked()
         in their initialize hook.
         """
-        return self._pm
+        pass
 
     def __getstate__(self):
         state = dict(
@@ -81,34 +81,6 @@ class OcrmypdfPluginManager:
             **state['init_kwargs'],
         )
 
-    def _setup_plugins(self):
-        self._pm.add_hookspecs(pluginspec)
-
-        # 1. Register builtins
-        if self._builtins:
-            for module in sorted(
-                pkgutil.iter_modules(ocrmypdf.builtin_plugins.__path__)
-            ):
-                name = f'ocrmypdf.builtin_plugins.{module.name}'
-                module = importlib.import_module(name)
-                self._pm.register(module)
-
-        # 2. Register setuptools plugins
-        self._pm.load_setuptools_entrypoints('ocrmypdf')
-
-        # 3. Register plugins specified on command line
-        for name in self._plugins:
-            if isinstance(name, Path) or name.endswith('.py'):
-                # Import by filename
-                module_name = Path(name).stem
-                spec = importlib.util.spec_from_file_location(module_name, name)
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-            else:
-                # Import by dotted module name
-                module = importlib.import_module(name)
-            self._pm.register(module)
 
     # =========================================================================
     # Type-safe hook methods
@@ -122,11 +94,11 @@ class OcrmypdfPluginManager:
 
     def get_executor(self, *, progressbar_class: type[ProgressBar]) -> Executor | None:
         """Returns an executor for parallel processing."""
-        return self._pm.hook.get_executor(progressbar_class=progressbar_class)
+        pass
 
     def get_progressbar_class(self) -> type[ProgressBar] | None:
         """Returns a progress bar class."""
-        return self._pm.hook.get_progressbar_class()
+        pass
 
     def rasterize_pdf_page(
         self,
@@ -144,44 +116,25 @@ class OcrmypdfPluginManager:
         use_cropbox: bool,
     ) -> Path | None:
         """Rasterize one page of a PDF at specified resolution."""
-        return self._pm.hook.rasterize_pdf_page(
-            input_file=input_file,
-            output_file=output_file,
-            raster_device=raster_device,
-            raster_dpi=raster_dpi,
-            pageno=pageno,
-            page_dpi=page_dpi,
-            rotation=rotation,
-            filter_vector=filter_vector,
-            stop_on_soft_error=stop_on_soft_error,
-            options=options,
-            use_cropbox=use_cropbox,
-        )
+        pass
 
     def filter_ocr_image(
         self, *, page: PageContext, image: Image.Image
     ) -> Image.Image | None:
         """Filter the image before it is sent to OCR."""
-        return self._pm.hook.filter_ocr_image(page=page, image=image)
+        pass
 
     def filter_page_image(
         self, *, page: PageContext, image_filename: Path
     ) -> Path | None:
         """Filter the whole page image before it is inserted into the PDF."""
-        return self._pm.hook.filter_page_image(page=page, image_filename=image_filename)
+        pass
 
     def filter_pdf_page(
         self, *, page: PageContext, image_filename: Path, output_pdf: Path
     ) -> Path:
         """Convert a filtered whole page image into a PDF."""
-        result = self._pm.hook.filter_pdf_page(
-            page=page, image_filename=image_filename, output_pdf=output_pdf
-        )
-        if result is None:
-            raise ValueError('No PDF produced')
-        if result != output_pdf:
-            raise ValueError('filter_pdf_page must return output_pdf')
-        return result
+        pass
 
     def get_ocr_engine(self, *, options: OcrOptions | None = None) -> OcrEngine:
         """Returns an OcrEngine to use for processing.
@@ -207,16 +160,7 @@ class OcrmypdfPluginManager:
         stop_on_soft_error: bool,
     ) -> Path | None:
         """Generate a PDF/A file."""
-        return self._pm.hook.generate_pdfa(
-            pdf_pages=pdf_pages,
-            pdfmark=pdfmark,
-            output_file=output_file,
-            context=context,
-            pdf_version=pdf_version,
-            pdfa_part=pdfa_part,
-            progressbar_class=progressbar_class,
-            stop_on_soft_error=stop_on_soft_error,
-        )
+        pass
 
     def optimize_pdf(
         self,
@@ -228,20 +172,11 @@ class OcrmypdfPluginManager:
         linearize: bool,
     ) -> tuple[Path, Sequence[str]]:
         """Optimize a PDF after OCR processing."""
-        result = self._pm.hook.optimize_pdf(
-            input_pdf=input_pdf,
-            output_pdf=output_pdf,
-            context=context,
-            executor=executor,
-            linearize=linearize,
-        )
-        if result is None:
-            return input_pdf, []
-        return result
+        pass
 
     def is_optimization_enabled(self, *, context: PdfContext) -> bool | None:
         """Returns whether optimization is enabled for given context."""
-        return self._pm.hook.is_optimization_enabled(context=context)
+        pass
 
     # --- non-firstresult hooks ---
 
@@ -268,7 +203,7 @@ class OcrmypdfPluginManager:
 
     def validate(self, *, pdfinfo: PdfInfo, options: OcrOptions) -> list[None]:
         """Called to validate options and pdfinfo after PDF is loaded."""
-        return self._pm.hook.validate(pdfinfo=pdfinfo, options=options)
+        pass
 
 
 def get_plugin_manager(

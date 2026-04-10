@@ -35,12 +35,12 @@ class BoundingBox:
     @property
     def width(self) -> float:
         """Width of the bounding box."""
-        return self.right - self.left
+        pass
 
     @property
     def height(self) -> float:
         """Height of the bounding box."""
-        return self.bottom - self.top
+        pass
 
     def __post_init__(self):
         """Validate bounding box coordinates."""
@@ -182,12 +182,7 @@ class OcrElement:
         Returns:
             List of all matching descendant elements (depth-first order)
         """
-        result = []
-        if self.ocr_class in ocr_classes:
-            result.append(self)
-        for child in self.children:
-            result.extend(child.iter_by_class(*ocr_classes))
-        return result
+        pass
 
     def find_by_class(self, *ocr_classes: str) -> OcrElement | None:
         """Find the first descendant matching the given class(es).
@@ -198,13 +193,7 @@ class OcrElement:
         Returns:
             The first matching element, or None if not found
         """
-        if self.ocr_class in ocr_classes:
-            return self
-        for child in self.children:
-            result = child.find_by_class(*ocr_classes)
-            if result is not None:
-                return result
-        return None
+        pass
 
     def get_text_recursive(self) -> str:
         """Get the combined text of this element and all descendants.
@@ -212,27 +201,22 @@ class OcrElement:
         Returns:
             Combined text content, with words separated by spaces
         """
-        if self.text:
-            return self.text
-        texts = [child.get_text_recursive() for child in self.children]
-        return " ".join(t for t in texts if t)
+        pass
 
     @property
     def words(self) -> list[OcrElement]:
         """Get all word elements (ocrx_word) in this element's subtree."""
-        return self.iter_by_class("ocrx_word")
+        pass
 
     @property
     def lines(self) -> list[OcrElement]:
         """Get all line elements in this element's subtree."""
-        return self.iter_by_class(
-            "ocr_line", "ocr_header", "ocr_footer", "ocr_caption", "ocr_textfloat"
-        )
+        pass
 
     @property
     def paragraphs(self) -> list[OcrElement]:
         """Get all paragraph elements (ocr_par) in this element's subtree."""
-        return self.iter_by_class("ocr_par")
+        pass
 
 
 # Type alias for text direction

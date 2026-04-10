@@ -58,8 +58,7 @@ def split_every(n: int, iterable: Iterable) -> Iterator:
 
     https://stackoverflow.com/a/22919323
     """
-    iterator = iter(iterable)
-    return takewhile(bool, (list(islice(iterator, n)) for _ in repeat(None)))
+    pass
 
 
 def process_sigbus(*args):
@@ -79,124 +78,25 @@ class ConnectionLogHandler(logging.handlers.QueueHandler):
 
     def enqueue(self, record):
         """Enqueue a log message."""
-        self.conn.send(('log', record))
+        pass
 
 
 def process_loop(
     conn: Connection, user_init: Callable[[], None], loglevel, task, task_args
 ):
     """Initialize a process pool worker."""
-    # Install SIGBUS handler (so our parent process can abort somewhat gracefully)
-    with suppress(AttributeError):  # Windows and Cygwin do not have SIGBUS
-        # Windows and Cygwin do not have pthread_sigmask or SIGBUS
-        signal.signal(signal.SIGBUS, process_sigbus)
-
-    # Reconfigure the root logger for this process to send all messages to a queue
-    h = ConnectionLogHandler(conn)
-    root = logging.getLogger()
-    remove_all_log_handlers(root)
-    root.setLevel(loglevel)
-    root.addHandler(h)
-
-    user_init()
-
-    for args in task_args:
-        try:
-            result = task(*args)
-        except Exception as e:  # pylint: disable=broad-except
-            conn.send((MessageType.exception, e))
-            break
-        else:
-            conn.send((MessageType.result, result))
-
-    conn.send((MessageType.complete, None))
-    conn.close()
-    return
+    pass
 
 
 class LambdaExecutor(Executor):
     """Executor for AWS Lambda or similar environments that lack semaphores."""
 
-    def _execute(
-        self,
-        *,
-        use_threads: bool,
-        max_workers: int,
-        progress_kwargs: dict,
-        worker_initializer: Callable,
-        task: Callable,
-        task_arguments: Iterable,
-        task_finished: Callable,
-    ):
-        if use_threads and max_workers == 1:
-            with self.pbar_class(**progress_kwargs) as pbar:
-                for args in task_arguments:
-                    result = task(*args)
-                    task_finished(result, pbar)
-            return
-
-        task_arguments = list(task_arguments)
-        grouped_args = list(
-            zip_longest(*list(split_every(max_workers, task_arguments)))
-        )
-        if not grouped_args:
-            return
-
-        processes: list[Process] = []
-        connections: list[Connection] = []
-        for chunk in grouped_args:
-            parent_conn, child_conn = Pipe()
-
-            worker_args = [args for args in chunk if args is not None]
-            process = Process(
-                target=process_loop,
-                args=(
-                    child_conn,
-                    worker_initializer,
-                    logging.getLogger("").level,
-                    task,
-                    worker_args,
-                ),
-            )
-            process.daemon = True
-            processes.append(process)
-            connections.append(parent_conn)
-
-        for process in processes:
-            process.start()
-
-        with self.pbar_class(**progress_kwargs) as pbar:
-            while connections:
-                for result in wait(connections):
-                    if not isinstance(result, Connection):
-                        raise NotImplementedError("We only support Connection()")
-                    try:
-                        msg_type, msg = result.recv()
-                    except EOFError:
-                        connections.remove(result)
-                        continue
-
-                    if msg_type == MessageType.result:
-                        task_finished(msg, pbar)
-                    elif msg_type == 'log':
-                        record = msg
-                        logger = logging.getLogger(record.name)
-                        logger.handle(record)
-                    elif msg_type == MessageType.complete:
-                        connections.remove(result)
-                    elif msg_type == MessageType.exception:
-                        for process in processes:
-                            process.terminate()
-                        raise msg
-
-        for process in processes:
-            process.join()
 
 
 @hookimpl
 def get_executor(progressbar_class):
     """Return a LambdaExecutor instance."""
-    return LambdaExecutor(pbar_class=progressbar_class)
+    pass
 
 
 @hookimpl
@@ -211,4 +111,4 @@ def get_progressbar_class():
 
     This executor cannot use a progress bar.
     """
-    return NullProgressBar
+    pass
